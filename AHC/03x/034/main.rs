@@ -4,81 +4,88 @@ use std::cmp::min;
 
 fn main() {
     let n: usize = get_one();
-    let mut hs = get_hs(n);
-    let mut dir = Direction::Right;
-    let mut x = 0;
-    let mut y = 0;
-    let mut load = 0;
+    let hs = get_hs(n);
+    let mut env = Env::new(n, hs);
     loop {
-        if hs[y][x] > 0 {
-            let d = hs[y][x];
-            load += d;
-            hs[y][x] = 0;
-            println!("+{}", d)
-        } else if hs[y][x] < 0 && load > 0 {
-            let p = hs[y][x];
-            let d = min(load, -p);
-            load -= d;
-            hs[y][x] += d;
-            println!("-{}", d);
+        let h = env.height();
+        if h > 0 {
+            env.load_up(h);
+        } else if h < 0 && env.load > 0 {
+            env.load_down(min(env.load, -h));
         }
-        match dir {
-            Direction::Right => {
-                if x == n-1 {
-                    dir = Direction::Left;
-                    y += 1;
-                    println!("D");
-                } else {
-                    x += 1;
-                    println!("R");
-                }
-            }
-            Direction::Left => {
-                if x == 0 {
-                    if y == n-1 {
-                        break;
-                    }
-                    dir = Direction::Right;
-                    y += 1;
-                    println!("D");
-                } else {
-                    x -= 1;
-                    println!("L");
-                }
-            }
+        if env.y == n-1 && env.x == 0 {
+            break;
+        }
+        env.go();
+    }
+    for h in env.history {
+        println!("{}", h);
+    }
+}
+
+struct Env {
+    n: usize,
+    hs: Vec<Vec<i64>>,
+    dir: Direction,
+    x: usize,
+    y: usize,
+    load: i64,
+    
+    history: Vec<String>,
+}
+
+impl Env {
+    fn new(n: usize, hs: Vec<Vec<i64>>) -> Env {
+        Env {
+            n: n,
+            hs: hs,
+            dir: Direction::Right,
+            x: 0,
+            y: 0,
+            load: 0,
+            history: Vec::new(),
         }
     }
-    dir = Direction::Right;
-    while load > 0 {
-        if hs[y][x] < 0 {
-            let p = hs[y][x];
-            let d = min(load, -p);
-            load -= d;
-            hs[y][x] += d;
-            println!("-{}", d);
-        }
-        match dir {
+    
+    fn height(&self) -> i64 {
+        self.hs[self.y][self.x]
+    }
+    
+    fn load_up(&mut self, d: i64) {
+        self.load += d;
+        self.hs[self.y][self.x] -= d;
+        self.history.push(format!("+{}", d));
+    }
+    
+    fn load_down(&mut self, d: i64) {
+        self.load -= d;
+        self.hs[self.y][self.x] += d;
+        self.history.push(format!("-{}", d));
+    }
+    
+    fn go(&mut self) {
+        match self.dir {
             Direction::Right => {
-                if x == n-1 {
-                    dir = Direction::Left;
-                    y -= 1;
-                    println!("U");
+                if self.x == self.n-1 {
+                    self.dir = Direction::Left;
+                    self.y += 1;
+                    self.history.push("D".to_string());
                 } else {
-                    x += 1;
-                    println!("R");
+                    self.x += 1;
+                    self.history.push("R".to_string());
                 }
             }
             Direction::Left => {
-                if x == 0 {
-                    if y == 0 {
-                        break;
+                if self.x == 0 {
+                    if self.y == self.n-1 {
+                        return;
                     }
-                    dir = Direction::Right;
-                    y -= 1;
-                    println!("U");
+                    self.dir = Direction::Right;
+                    self.y += 1;
+                    self.history.push("D".to_string());
                 } else {
-                    x -= 1;
-                    println!("L");
+                    self.x -= 1;
+                    self.history.push("L".to_string());
                 }
             }
         }
