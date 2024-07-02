@@ -12,8 +12,8 @@ fn main() {
     }
     
     let mut env = Env::new(n, m, k, A.clone(), Ss.clone());
-    for i in 0..(n-2) {
-        for j in 0..(n-2) {
+    for i in 0..(n-3) {
+        for j in 0..(n-3) {
             let mut c = None;
             let mut l = env.A[i][j];
             for t in 0..m {
@@ -28,6 +28,51 @@ fn main() {
             }
         }
     }
+    for i in 0..(n-3) {
+        let mut c = None;
+        let mut g = 0;
+        for t in 0..m {
+            let s = step(t, i, n-3);
+            let gg = env.gain_top(&s);
+            if gg > g {
+                g = gg;
+                c = Some(s);
+            }
+        }
+        if let Some(step) = c {
+            env.apply(&step);
+        }
+    }
+    for j in 0..(n-3) {
+        let mut c = None;
+        let mut g = 0;
+        for t in 0..m {
+            let s = step(t, n-3, j);
+            let gg = env.gain_left(&s);
+            if gg > g {
+                g = gg;
+                c = Some(s);
+            }
+        }
+        if let Some(step) = c {
+            env.apply(&step);
+        }
+    }
+    
+    let mut c = None;
+    let mut g = 0;
+    for t in 0..m {
+        let s = step(t, n-3, n-3);
+        let gg = env.gain(&s);
+        if gg > g {
+            g = gg;
+            c = Some(s);
+        }
+    }
+    if let Some(s) = c {
+        env.apply(&s);
+    }
+    
     env.print();
 }
 
@@ -69,7 +114,7 @@ impl Env {
         }
         return s;
     }
-    
+
     fn apply(&mut self, step: &Step) {
         self.actions.push(step.clone());
         for i in 0..3 {
@@ -77,6 +122,40 @@ impl Env {
                 self.A[step.p + i][step.q + j] = (self.A[step.p + i][step.q + j] + self.Ss[step.t][i][j]) % MOD;
             }
         }
+    }
+    
+    fn gain(&self, step: &Step) -> i64 {
+        let mut d = 0;
+        for i in 0..3 {
+            for j in 0..3 {
+                let prev = self.A[step.p + i][step.q + j];
+                let next = (self.A[step.p + i][step.q + j] + self.Ss[step.t][i][j]) % MOD;
+                d += next - prev;
+            }
+        }
+        return d;
+    }
+
+    fn gain_top(&self, step: &Step) -> i64 {
+        let mut d = 0;
+        let i = 0;
+        for j in 0..3 {
+            let prev = self.A[step.p + i][step.q + j];
+            let next = (self.A[step.p + i][step.q + j] + self.Ss[step.t][i][j]) % MOD;
+            d += next - prev;
+        }
+        return d;
+    }
+    
+    fn gain_left(&self, step: &Step) -> i64 {
+        let mut d = 0;
+        let j = 0;
+        for i in 0..3 {
+            let prev = self.A[step.p + i][step.q + j];
+            let next = (self.A[step.p + i][step.q + j] + self.Ss[step.t][i][j]) % MOD;
+            d += next - prev;
+        }
+        return d;
     }
     
     fn print(&self) {
