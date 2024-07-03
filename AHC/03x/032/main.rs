@@ -5,89 +5,42 @@ const MOD: i64 = 998244353;
 
 fn main() {
     let (n, m, k): (usize, usize, usize) = get_triple();
-    let mut A = get_square(n);
+    let A = get_square(n);
     let mut Ss = Vec::new();
     for _ in 0..m {
         Ss.push(get_square(3));
     }
     
-    let mut env = Env::new(n, m, k, A.clone(), Ss.clone());
-    for i in 0..(n-3) {
-        for j in 0..(n-3) {
-            let mut c = None;
-            let mut l = env.A[i][j];
-            for t in 0..m {
-                let s = (env.A[i][j] + Ss[t][0][0]) % MOD;
-                if s > l {
-                    l = s;
-                    c = Some(step(t, i, j));
-                }
-            }
-            if let Some(step) = c {
-                env.apply(&step);
-            }
-        }
+    let env = Env::new(n, m, k, A.clone(), Ss.clone());
+    let mut beam_search = BeamSearch::new(30, vec![env]);
+    for _ in 0..((n-2) * (n-2)) {
+        beam_search.search();
     }
-    for i in 0..(n-3) {
-        let mut c = None;
-        let mut g = 0;
-        for t in 0..m {
-            let s = step(t, i, n-3);
-            let gg = env.gain_top(&s);
-            if gg > g {
-                g = gg;
-                c = Some(s);
-            }
-        }
-        if let Some(step) = c {
-            env.apply(&step);
-        }
-    }
-    for j in 0..(n-3) {
-        let mut c = None;
-        let mut g = 0;
-        for t in 0..m {
-            let s = step(t, n-3, j);
-            let gg = env.gain_left(&s);
-            if gg > g {
-                g = gg;
-                c = Some(s);
-            }
-        }
-        if let Some(step) = c {
-            env.apply(&step);
-        }
-    }
-    
-    let mut c = None;
-    let mut g = 0;
-    for t in 0..m {
-        let s = step(t, n-3, n-3);
-        let gg = env.gain(&s);
-        if gg > g {
-            g = gg;
-            c = Some(s);
-        }
-    }
-    if let Some(s) = c {
-        env.apply(&s);
-    }
-    
-    env.print();
+    beam_search.best().print();
 }
 
+#[derive(Clone)]
 struct Env {
     n: usize,
     m: usize,
     k: usize,
+    i: usize,
+    j: usize,
     A: Vec<Vec<i64>>,
     Ss: Vec<Vec<Vec<i64>>>,
+    fixed_score: i64,
     actions: Vec<Step>,
 }
 
 impl Env {
     fn new(n: usize, m: usize, k: usize, A: Vec<Vec<i64>>, Ss: Vec<Vec<Vec<i64>>>) -> Self {
-        Env {n, m, k, A, Ss, actions: Vec::new()}
+        Env {
+            n, m, k, A, Ss,
+            i: 0,
+            j: 0,
+            fixed_score: 0,
+            actions: Vec::new(),
+        }
     }
     
     fn score(&self) -> i64 {
@@ -100,49 +53,48 @@ impl Env {
         return s;
     }
     
-    fn estimate(&self, step: &Step) -> i64 {
-        let mut s = 0;
-        for i in 0..self.m {
-            for j in 0..self.m {
-                let mut x = self.A[i][j];
-                if i <= step.p && step.p < i + 3 
-                    && j <= step.q && step.q < j + 3 {
-                        x += self.Ss[step.t][step.p + i][step.q + j]
-                }
-                s += x % MOD;
-            }
+    fn estimate_local(&self, step: &Step, i: usize, j: usize) -> i64 {
+        let mut x = self.A[i][j];
+        if i <= step.p && step.p < i + 3 
+            && j <= step.q && step.q < j + 3 {
+                x += self.Ss[step.t][step.p + i][step.q + j]
         }
-        return s;
+        return x % MOD;
     }
 
-    fn apply(&mut self, step: &Step) {
-        self.actions.push(step.clone());
-        for i in 0..3 {
-            for j in 0..3 {
-                self.A[step.p + i][step.q + j] = (self.A[step.p + i][step.q + j] + self.Ss[step.t][i][j]) % MOD;
-            }
-        }
-    }
-    
     fn gain(&self, step: &Step) -> i64 {
-        let mut d = 0;
-        for i in 0..3 {
-            for j in 0..3 {
-                let prev = self.A[step.p + i][step.q + j];
-                let next = (self.A[step.p + i][step.q + j] + self.Ss[step.t][i][j]) % MOD;
-                d += next - prev;
+        if step.p == self.n-3 && step.q == self.n-3 {
+            return {
+                let mut s = 0;
+                for i in 0..3 {
+                    for j in 0..3 {
+                        let next = (self.A[step.p + i][step.q + j] + self.Ss[step.t][i][j]) % MOD;
+                        s += next;
+                    }
+                }
+                s
             }
         }
-        return d;
+        if step.p <= step.q {
+            return if step.q == self.n-3 {
+                self.gain_top(step)
+            } else {
+                (self.A[step.p][step.q] + self.Ss[step.t][0][0]) % MOD
+            }
+        }
+        return if step.p == self.n-3 {
+            self.gain_left(step)
+        } else {
+            (self.A[step.p][step.q] + self.Ss[step.t][0][0]) % MOD
+        }
     }
 
     fn gain_top(&self, step: &Step) -> i64 {
         let mut d = 0;
         let i = 0;
         for j in 0..3 {
-            let prev = self.A[step.p + i][step.q + j];
             let next = (self.A[step.p + i][step.q + j] + self.Ss[step.t][i][j]) % MOD;
-            d += next - prev;
+            d += next;
         }
         return d;
     }
@@ -151,9 +103,8 @@ impl Env {
         let mut d = 0;
         let j = 0;
         for i in 0..3 {
-            let prev = self.A[step.p + i][step.q + j];
             let next = (self.A[step.p + i][step.q + j] + self.Ss[step.t][i][j]) % MOD;
-            d += next - prev;
+            d += next;
         }
         return d;
     }
@@ -163,6 +114,48 @@ impl Env {
         for a in self.actions.iter() {
             println!("{} {} {}", a.t, a.p, a.q);
         }
+    }
+}
+
+impl State for Env {
+    type Action = Step;
+    
+    fn estimate(&self, action: &Step) -> i64 {
+        return self.fixed_score + self.gain(action);
+    }
+    
+    fn apply(mut self, step: &Step) -> Self {
+        self.actions.push(step.clone());
+        self.fixed_score += self.gain(step);
+        for i in 0..3 {
+            for j in 0..3 {
+                self.A[step.p + i][step.q + j] = (self.A[step.p + i][step.q + j] + self.Ss[step.t][i][j]) % MOD;
+            }
+        }
+        if self.i <= self.j {
+            if self.j == self.n-3 {
+                self.j = self.i;
+                self.i += 1;
+            } else {
+                self.j += 1;
+            }
+        } else {
+            if self.i == self.n-3 {
+                self.i = self.j + 1;
+                self.j = self.i;
+            } else {
+                self.i += 1;
+            }
+        }
+        return self;
+    }
+    
+    fn available_actions(&self) -> Vec<Step> {
+        let mut actions = Vec::new();
+        for t in 0..self.m {
+            actions.push(step(t, self.i, self.j));
+        }
+        return actions;
     }
 }
 
@@ -177,13 +170,50 @@ fn step(t: usize, p: usize, q: usize) -> Step {
     Step {t, p, q}
 }
 
-fn get_square(n: usize) -> Vec<Vec<i64>>  {
-    let mut result = Vec::new();
-    for _ in 0..n {
-        let row: Vec<i64> = get_vec();
-        result.push(row);
+struct BeamSearch<S: Clone + State> {
+    beam_width: usize,
+    beam: Vec<S>,
+}
+
+impl <S: Clone + State> BeamSearch<S> {
+    fn new(beam_width: usize, initial_states: Vec<S>) -> Self {
+        BeamSearch {beam_width, beam: initial_states}
     }
-    return result;
+    
+    fn search(&mut self) {
+        let mut next_beam = Vec::new();
+        for state in self.beam.iter() {
+            for action in state.available_actions() {
+                next_beam.push((state, action));
+            }
+        }
+        next_beam.sort_by_key(|(state, action)| -state.estimate(action));
+        next_beam.truncate(self.beam_width);
+        self.beam = next_beam
+            .iter()
+            .map(|(&ref state, action)| state.clone().apply(action))
+            .collect();
+        return;
+    }
+    
+    fn best(&self) -> &S {
+        self.beam.first().unwrap()
+    }
+}
+
+trait State {
+    type Action;
+    fn estimate(&self, action: &Self::Action) -> i64;
+    fn apply(self, action: &Self::Action) -> Self;
+    fn available_actions(&self) -> Vec<Self::Action>;
+}
+
+fn get_square(n: usize) -> Vec<Vec<i64>> {
+    let mut a = Vec::new();
+    for _ in 0..n {
+        a.push(get_vec());
+    }
+    return a;
 }
 
 #[allow(dead_code)]
