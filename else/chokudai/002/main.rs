@@ -1,10 +1,8 @@
-use std::collections::HashSet;
-
 const MAX: i64 = 10_i64.pow(9);
 
 fn main() {
     let mut ans = Vec::new();
-    for i in 13..1000 {
+    for i in 17..1000 {
         if ans.len() == 100 {
             break;
         }
@@ -50,12 +48,18 @@ fn f(x: i64) -> i64 {
                     if aa * bb * cc * dd * x > MAX {
                         break;
                     }
-                    let rem = MAX / (aa * bb * cc * dd * x);
-                    let (e, ee) = g(rem as u32, 11);
-                    let ls = (a+1) * (b+1) * (c+1) * (d+1) * (e+1);
-                    if ls > s {
-                        s = ls;
-                        y = aa * bb * cc * dd * ee * x;
+                    for e in 0..3 {
+                        let ee = 11_i64.pow(e);
+                        if aa * bb * cc * dd * ee * x > MAX {
+                            break;
+                        }
+                        let rem = MAX / (aa * bb * cc * dd * ee * x);
+                        let (f, ff) = g(rem as u32, 13);
+                        let ls = (a+1) * (b+1) * (c+1) * (d+1) * (e+1) * (f+1);
+                        if ls > s {
+                            s = ls;
+                            y = aa * bb * cc * dd * ee * ff * x;
+                        }
                     }
                 }
             }
