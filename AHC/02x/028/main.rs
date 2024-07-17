@@ -116,7 +116,7 @@ impl Word {
                     if a[i][j] == c {
                         let dd1 = cost((i, j), prev);
                         let dd2 = cost((i, j), center);
-                        let dd = dd1 * (a.len()) as i64 * 2 + dd2;
+                        let dd = dd1 * (a.len()) as i64 / 3 + dd2;
                         if dd < d {
                             d = dd;
                             next = (i, j);
