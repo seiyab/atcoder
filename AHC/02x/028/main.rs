@@ -98,37 +98,23 @@ fn main() {
 
 struct Word {
     s: Vec<char>,
-    cost: i64,
     steps: Vec<(usize, usize)>,
 }
 
 impl Word {
     fn new(s: Vec<char>, a: &Vec<Vec<char>>) -> Word {
-        let mut steps = Vec::new();
-        let center = (a.len()/2, a.len()/2);
-        let mut prev = (a.len()/2, a.len()/2);
-        let mut cst = 0;
-        for c in s.iter().cloned() {
-            let mut d = (a.len() * a.len() * 100) as i64;
-            let mut next = prev;
-            for i in 0..a.len() {
-                for j in 0..a.len() {
-                    if a[i][j] == c {
-                        let dd1 = cost((i, j), prev);
-                        let dd2 = cost((i, j), center);
-                        let dd = dd1 * (a.len()) as i64 / 3 + dd2;
-                        if dd < d {
-                            d = dd;
-                            next = (i, j);
-                        }
-                    }
-                }
+        let mut dict = HashMap::new();
+        for (i, x) in a.iter().enumerate() {
+            for (j, y) in x.iter().enumerate() {
+                let c = dict.entry(*y).or_insert(Vec::new());
+                c.push((i, j));
             }
-            steps.push(next);
-            cst += cost(prev, next);
-            prev = next;
         }
-        return Word{s: s, cost: cst, steps: steps};
+        let mut b = BeamSearch::new(10, vec![WordEnv{n: a.len(), word: s.clone(), path: Vec::new()}]);
+        for _ in 0..s.len() {
+            b.search(&dict);
+        }
+        return Word{s: s, steps: b.best().path.clone()};
     }
     
     fn estimate0(&self, pos: (usize, usize)) -> i64 {
@@ -153,6 +139,77 @@ fn cost(f: (usize, usize), t: (usize, usize)) -> i64 {
     let (fi, fj) = f;
     let (ti, tj) = t;
     1 + ((fi as i64 - ti as i64).abs() + (fj as i64 - tj as i64).abs()) as i64
+}
+
+#[derive(Clone)]
+struct WordEnv {
+    n: usize,
+    word: Vec<char>,
+    path: Vec<(usize, usize)>,
+}
+
+impl State for WordEnv {
+    type Action = (usize, usize);
+    type Input = HashMap<char, Vec<(usize, usize)>>;
+
+    fn estimate(&self, action: &(usize, usize)) -> i64 {
+        let center = (self.n/2, self.n/2);
+        let prev = self.path.last().unwrap_or(&center);
+        let mut d = cost(prev.clone(), action.clone());
+        if self.path.len() == 4 {
+            d += cost(action.clone(), center) / 2;
+        }
+        return -d;
+    }
+    fn apply(mut self, action: &Self::Action) -> Self {
+        self.path.push(action.clone());
+        return self;
+    }
+    fn available_actions(&self, dict: &Self::Input) -> Vec<Self::Action> {
+        let l = self.path.len();
+        let nc = self.word[l];
+        return dict.get(&nc).unwrap().clone();
+    }
+}
+
+struct BeamSearch<S: Clone + State> {
+    beam_width: usize,
+    beam: Vec<S>,
+}
+
+
+impl <S: Clone + State> BeamSearch<S> {
+    fn new(beam_width: usize, initial_states: Vec<S>) -> Self {
+        BeamSearch {beam_width, beam: initial_states}
+    }
+    
+    fn search(&mut self, input: &S::Input) {
+        let mut next_beam = Vec::new();
+        for state in self.beam.iter() {
+            for action in state.available_actions(input) {
+                next_beam.push((state, action));
+            }
+        }
+        next_beam.sort_by_key(|(state, action)| -state.estimate(action));
+        next_beam.truncate(self.beam_width);
+        self.beam = next_beam
+            .iter()
+            .map(|(&ref state, action)| state.clone().apply(action))
+            .collect();
+        return;
+    }
+    
+    fn best(&self) -> &S {
+        self.beam.first().unwrap()
+    }
+}
+
+trait State {
+    type Action;
+    type Input;
+    fn estimate(&self, action: &Self::Action) -> i64;
+    fn apply(self, action: &Self::Action) -> Self;
+    fn available_actions(&self, input: &Self::Input) -> Vec<Self::Action>;
 }
 
 #[allow(dead_code)]
