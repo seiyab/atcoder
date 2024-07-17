@@ -105,7 +105,7 @@ struct Word {
 impl Word {
     fn new(s: Vec<char>, a: &Vec<Vec<char>>) -> Word {
         let mut steps = Vec::new();
-        let center = ((a.len()/2) as i64, (a.len()/2) as i64);
+        let center = (a.len()/2, a.len()/2);
         let mut prev = (a.len()/2, a.len()/2);
         let mut cst = 0;
         for c in s.iter().cloned() {
@@ -114,10 +114,8 @@ impl Word {
             for i in 0..a.len() {
                 for j in 0..a.len() {
                     if a[i][j] == c {
-                        let ii = i as i64;
-                        let jj = j as i64;
-                        let dd1 = (ii - prev.0 as i64).abs() + (jj - prev.1 as i64).abs();
-                        let dd2 = (ii - center.0).abs() + (jj - center.1).abs();
+                        let dd1 = cost((i, j), prev);
+                        let dd2 = cost((i, j), center);
                         let dd = dd1 * (a.len()) as i64 * 2 + dd2;
                         if dd < d {
                             d = dd;
@@ -134,21 +132,20 @@ impl Word {
     }
     
     fn estimate0(&self, pos: (usize, usize)) -> i64 {
-        let c = cost(pos, self.steps[0]);
-        c + self.cost
+        cost(pos, self.steps[0])
     }
     
     fn estimate1(&self, pos: (usize, usize)) -> i64 {
         let c = cost(pos, self.steps[1]);
         let d = cost(self.steps[0], self.steps[1]);
-        c - d + self.cost
+        c - d
     }
     
     fn estimate2(&self, pos: (usize, usize)) -> i64 {
         let c = cost(pos, self.steps[2]);
         let d0 = cost(self.steps[1], self.steps[2]);
         let d1 = cost(self.steps[1], self.steps[2]);
-        c - d0 - d1 + self.cost
+        c - d0 - d1
     }
 }
 
