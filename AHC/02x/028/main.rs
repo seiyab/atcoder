@@ -20,41 +20,40 @@ fn main() {
         words.push(Word::new(s.clone(), &a));
     }
     
+    /*
     let mut dict = HashMap::new();
     for (i, s) in t.iter().enumerate() {
         let mut c = s.chars().next().unwrap();
         dict.insert(c, i);
     }
+    */
     
     let mut todo: HashSet<usize> = HashSet::new();
     for i in 0..m {
         todo.insert(i);
     }
     
-    let mut i = 0;
-    let mut cur = None;
+    let mut cur = (si, sj);
     let mut steps = Vec::new();
     while todo.len() > 0 {
-        if let Some(w) = cur {
-            if let Some(&j) = dict.get(&w) {
-                todo.remove(&j);
-                dict.remove(&w);
-                let x = &words[j];
-                for k in 1..x.steps.len() {
-                    steps.push(x.steps[k]);
-                }
-                cur = x.s.chars().last();
-                continue
+        let mut gr_cost = 10000;
+        let mut candidate = todo.iter().next().unwrap().clone();
+        let mut dup = 0;
+        for i in todo.iter() {
+            let w = words[*i].estimate0(cur);
+            if w < gr_cost {
+                gr_cost = w;
+                candidate = *i;
             }
         }
-        while !todo.contains(&i) {
-            i += 1;
+        
+        
+        let nx = candidate;
+        for x in words[nx].steps.iter() {
+            steps.push(*x);
         }
-        todo.remove(&i);
-        for s in words[i].steps.iter() {
-            steps.push(s.clone());
-        }
-        cur = words[i].s.chars().last();
+        todo.remove(&nx);
+        cur = words[nx].steps[words[nx].steps.len()-1];
     }
 
     for (i, j) in steps {
@@ -97,6 +96,17 @@ impl Word {
             prev = next;
         }
         return Word{s: s, cost: cst, steps: steps};
+    }
+    
+    fn estimate0(&self, pos: (usize, usize)) -> i64 {
+        let mut c = cost(pos, self.steps[0]);
+        c + self.cost
+    }
+    
+    fn estimate1(&self, pos: (usize, usize)) -> i64 {
+        let mut c = cost(pos, self.steps[1]);
+        let mut d = cost(self.steps[0], self.steps[1]);
+        c + d + self.cost
     }
 }
 
