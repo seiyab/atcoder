@@ -10,7 +10,7 @@ fn main() {
     let t = {
         let mut v = Vec::new();
         for _ in 0..m {
-            v.push(get_line());
+            v.push(get_chars());
         }
         v
     };
@@ -35,6 +35,7 @@ fn main() {
     
     let mut cur = (si, sj);
     let mut steps = Vec::new();
+    let mut pw: Option<Vec<char>> = None;
     while todo.len() > 0 {
         let mut gr_cost = 10000;
         let mut candidate = todo.iter().next().unwrap().clone();
@@ -47,17 +48,36 @@ fn main() {
             }
         }
         
-        for i in todo.iter() {
-            if a[cur.0][cur.1] != t[*i].chars().next().unwrap() {
-                continue
+        if let Some(word) = pw {
+            let l0 = word[word.len()-1];
+            let l1 = word[word.len()-2];
+            for i in todo.iter() {
+                if l0 != t[*i][0] {
+                    continue
+                }
+                let w = words[*i].estimate1(cur);
+                if w == gr_cost {
+                    dup = 1;
+                    gr_cost = w;
+                    candidate = *i;
+                }
             }
-            let w = words[*i].estimate1(cur);
-            if w == gr_cost {
-                dup = if todo.len() == m { 0 } else  { 1 };
-                gr_cost = w;
-                candidate = *i;
+            
+            for i in todo.iter() {
+                let c0 = t[*i][0];
+                let c1 = t[*i][1];
+                if l1 != c0 || l0 != c1 {
+                    continue
+                }
+                let w = words[*i].estimate2(cur);
+                if w == gr_cost {
+                    dup = 2;
+                    gr_cost = w;
+                    candidate = *i;
+                }
             }
         }
+
         
         let nx = candidate;
         for (i, x) in words[nx].steps.iter().enumerate() {
@@ -68,6 +88,7 @@ fn main() {
         }
         todo.remove(&nx);
         cur = words[nx].steps[words[nx].steps.len()-1];
+        pw = Some(t[nx].clone());
     }
 
     for (i, j) in steps {
@@ -76,18 +97,18 @@ fn main() {
 }
 
 struct Word {
-    s: String,
+    s: Vec<char>,
     cost: i64,
     steps: Vec<(usize, usize)>,
 }
 
 impl Word {
-    fn new(s: String, a: &Vec<Vec<char>>) -> Word {
+    fn new(s: Vec<char>, a: &Vec<Vec<char>>) -> Word {
         let mut steps = Vec::new();
         let center = ((a.len()/2) as i64, (a.len()/2) as i64);
         let mut prev = (a.len()/2, a.len()/2);
         let mut cst = 0;
-        for c in s.chars() {
+        for c in s.iter().cloned() {
             let mut d = (a.len() * a.len() * 100) as i64;
             let mut next = prev;
             for i in 0..a.len() {
@@ -121,6 +142,13 @@ impl Word {
         let c = cost(pos, self.steps[1]);
         let d = cost(self.steps[0], self.steps[1]);
         c - d + self.cost
+    }
+    
+    fn estimate2(&self, pos: (usize, usize)) -> i64 {
+        let c = cost(pos, self.steps[2]);
+        let d0 = cost(self.steps[1], self.steps[2]);
+        let d1 = cost(self.steps[1], self.steps[2]);
+        c - d0 - d1 + self.cost
     }
 }
 
