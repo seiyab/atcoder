@@ -53,7 +53,7 @@ fn main() {
             }
             let w = words[*i].estimate1(cur);
             if w == gr_cost {
-                dup = 1;
+                dup = if todo.len() == m { 0 } else  { 1 };
                 gr_cost = w;
                 candidate = *i;
             }
