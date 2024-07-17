@@ -16,6 +16,7 @@ def main():
         
     print(score)
 
+# NOTE: not perfect
 def g(ans):
     v = 0
     ss = ans.split("\n")
