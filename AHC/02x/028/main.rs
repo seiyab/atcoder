@@ -47,9 +47,23 @@ fn main() {
             }
         }
         
+        for i in todo.iter() {
+            if a[cur.0][cur.1] != t[*i].chars().next().unwrap() {
+                continue
+            }
+            let w = words[*i].estimate1(cur);
+            if w == gr_cost {
+                dup = 1;
+                gr_cost = w;
+                candidate = *i;
+            }
+        }
         
         let nx = candidate;
-        for x in words[nx].steps.iter() {
+        for (i, x) in words[nx].steps.iter().enumerate() {
+            if i < dup {
+                continue
+            }
             steps.push(*x);
         }
         todo.remove(&nx);
@@ -99,14 +113,14 @@ impl Word {
     }
     
     fn estimate0(&self, pos: (usize, usize)) -> i64 {
-        let mut c = cost(pos, self.steps[0]);
+        let c = cost(pos, self.steps[0]);
         c + self.cost
     }
     
     fn estimate1(&self, pos: (usize, usize)) -> i64 {
-        let mut c = cost(pos, self.steps[1]);
-        let mut d = cost(self.steps[0], self.steps[1]);
-        c + d + self.cost
+        let c = cost(pos, self.steps[1]);
+        let d = cost(self.steps[0], self.steps[1]);
+        c - d + self.cost
     }
 }
 
