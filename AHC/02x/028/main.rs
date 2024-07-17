@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::io::stdin;
 use std::str::FromStr;
 
@@ -14,15 +16,49 @@ fn main() {
     };
     
     let mut words = Vec::new();
-    for s in t {
-        words.push(Word::new(s, &a));
+    for s in t.iter() {
+        words.push(Word::new(s.clone(), &a));
     }
     
-    for w in words {
-        // println!("{} {}", w.s, w.cost);
-        for (i, j) in w.steps {
-            println!("{} {}", i, j);
+    let mut dict = HashMap::new();
+    for (i, s) in t.iter().enumerate() {
+        let mut c = s.chars().next().unwrap();
+        dict.insert(c, i);
+    }
+    
+    let mut todo: HashSet<usize> = HashSet::new();
+    for i in 0..m {
+        todo.insert(i);
+    }
+    
+    let mut i = 0;
+    let mut cur = None;
+    let mut steps = Vec::new();
+    while todo.len() > 0 {
+        if let Some(w) = cur {
+            if let Some(&j) = dict.get(&w) {
+                todo.remove(&j);
+                dict.remove(&w);
+                let x = &words[j];
+                for k in 1..x.steps.len() {
+                    steps.push(x.steps[k]);
+                }
+                cur = x.s.chars().last();
+                continue
+            }
         }
+        while !todo.contains(&i) {
+            i += 1;
+        }
+        todo.remove(&i);
+        for s in words[i].steps.iter() {
+            steps.push(s.clone());
+        }
+        cur = words[i].s.chars().last();
+    }
+
+    for (i, j) in steps {
+        println!("{} {}", i, j);
     }
 }
 
