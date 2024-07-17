@@ -16,93 +16,104 @@ fn main() {
     };
     
     let mut words = Vec::new();
-    for s in t.iter() {
-        words.push(Word::new(s.clone(), &a));
-    }
-    
-    /*
-    let mut dict = HashMap::new();
     for (i, s) in t.iter().enumerate() {
-        let mut c = s.chars().next().unwrap();
-        dict.insert(c, i);
+        words.push(Word::new(s.clone(), &a, i));
     }
-    */
     
     let mut todo: HashSet<usize> = HashSet::new();
     for i in 0..m {
         todo.insert(i);
     }
     
-    let mut cur = (si, sj);
-    let mut steps = Vec::new();
-    let mut pw: Option<Vec<char>> = None;
-    while todo.len() > 0 {
-        let mut gr_cost = 10000;
-        let mut candidate = todo.iter().next().unwrap().clone();
-        let mut dup = 0;
-        for i in todo.iter() {
-            let w = words[*i].estimate0(cur);
-            if w < gr_cost {
-                gr_cost = w;
-                candidate = *i;
-            }
-        }
-        
-        if let Some(word) = pw {
-            let l0 = word[word.len()-1];
-            let l1 = word[word.len()-2];
-            for i in todo.iter() {
-                if l0 != t[*i][0] {
-                    continue
-                }
-                let w = words[*i].estimate1(cur);
-                if w == gr_cost {
-                    dup = 1;
-                    gr_cost = w;
-                    candidate = *i;
-                }
-            }
-            
-            for i in todo.iter() {
-                let c0 = t[*i][0];
-                let c1 = t[*i][1];
-                if l1 != c0 || l0 != c1 {
-                    continue
-                }
-                let w = words[*i].estimate2(cur);
-                if w == gr_cost {
-                    dup = 2;
-                    gr_cost = w;
-                    candidate = *i;
-                }
-            }
-        }
-
-        
-        let nx = candidate;
-        for (i, x) in words[nx].steps.iter().enumerate() {
-            if i < dup {
-                continue
-            }
-            steps.push(*x);
-        }
-        todo.remove(&nx);
-        cur = words[nx].steps[words[nx].steps.len()-1];
-        pw = Some(t[nx].clone());
+    let cur = (si, sj);
+    let init = Env::new(m, &cur, a[si][sj]);
+    let mut b = BeamSearch::new(100, vec![init]);
+    for _ in 0..m {
+        b.search(&words);
     }
 
-    for (i, j) in steps {
+    for (_, i, j) in b.best().steps.iter() {
         println!("{} {}", i, j);
     }
 }
 
+#[derive(Clone)]
+struct Env {
+    score: i64,
+    steps: Vec<(char, usize, usize)>,
+    todo: HashSet<usize>,
+}
+
+impl Env {
+    fn new(m: usize, s: &(usize, usize), c: char) -> Env {
+        let mut todo: HashSet<usize> = HashSet::new();
+        for i in 0..m {
+            todo.insert(i);
+        }
+        return Env{score: 0, steps: vec![(c, s.0, s.1)], todo: todo};
+    }
+}
+
+impl State for Env {
+    type Action = Word;
+    type Input = Vec<Word>;
+    
+    fn estimate(&self, action: &Self::Action) -> i64 {
+        let last_t = self.steps.last().unwrap();
+        let last = (last_t.1, last_t.2);
+        if last_chunk::<2>(&self.steps) == Some([action.s[0], action.s[1]]) {
+            return action.estimate2(last);
+        }
+        if last_chunk::<1>(&self.steps) == Some([action.s[0]]) {
+            return action.estimate1(last);
+        }
+        return action.estimate0(last);
+    }
+
+    fn apply(mut self, action: &Self::Action) -> Self {
+        let e = self.estimate(action);
+        self.score += e;
+        let dup = if last_chunk::<2>(&self.steps) == Some([action.s[0], action.s[1]]) {
+            2
+        } else if last_chunk::<1>(&self.steps) == Some([action.s[0]]) {
+            1
+        } else { 0 };
+        for i in dup..action.steps.len() {
+            self.steps.push((action.s[i], action.steps[i].0, action.steps[i].1));
+        }
+        self.todo.remove(&action.idx);
+        return self;
+    }
+
+    fn available_actions(&self, input: &Self::Input) -> Vec<Self::Action> {
+        let mut acs = Vec::new();
+        for i in self.todo.iter() {
+            acs.push(input[*i].clone());
+        }
+        return acs;
+    }
+}
+
+fn last_chunk<const N: usize>(v: &Vec<(char, usize, usize)>) -> Option<[char; N]> {
+    if v.len() < N {
+        return None;
+    }
+    let mut a = ['a'; N];
+    for i in 0..N {
+        a[i] = v[v.len()-N+i].0;
+    }
+    return Some(a);
+}
+
+#[derive(Clone)]
 struct Word {
+    idx: usize,
     s: Vec<char>,
     steps: Vec<(usize, usize)>,
 }
 
 impl Word {
-    fn new(s: Vec<char>, a: &Vec<Vec<char>>) -> Word {
+    fn new(s: Vec<char>, a: &Vec<Vec<char>>, idx: usize) -> Word {
         let mut dict = HashMap::new();
         for (i, x) in a.iter().enumerate() {
             for (j, y) in x.iter().enumerate() {
@@ -114,24 +125,24 @@ impl Word {
         for _ in 0..s.len() {
             b.search(&dict);
         }
-        return Word{s: s, steps: b.best().path.clone()};
+        return Word{idx: idx, s: s, steps: b.best().path.clone()};
     }
     
     fn estimate0(&self, pos: (usize, usize)) -> i64 {
-        cost(pos, self.steps[0])
+        -cost(pos, self.steps[0])
     }
     
     fn estimate1(&self, pos: (usize, usize)) -> i64 {
         let c = cost(pos, self.steps[1]);
         let d = cost(self.steps[0], self.steps[1]);
-        c - d
+        d - c
     }
     
     fn estimate2(&self, pos: (usize, usize)) -> i64 {
         let c = cost(pos, self.steps[2]);
         let d0 = cost(self.steps[1], self.steps[2]);
         let d1 = cost(self.steps[1], self.steps[2]);
-        c - d0 - d1
+        d0 + d1 - c
     }
 }
 
