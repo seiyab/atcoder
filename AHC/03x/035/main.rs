@@ -16,8 +16,9 @@ fn main() {
 }
 
 fn planting(n: usize, x: &Vec<Seed>) -> Vec<Vec<usize>> {
+    let stat = Stat::new(x);
     let mut xi = x.iter().enumerate().collect::<Vec<_>>();
-    xi.sort_by_key(|&(_, ref s)| -eval(&s.x));
+    xi.sort_by_key(|&(_, ref s)| -eval(&s.x, &stat));
     let ii = xi.iter().map(|&(i, _)| i).collect::<Vec<_>>();
     return center_first(n, ii);
 }
@@ -50,8 +51,15 @@ fn center_first(n: usize, is: Vec<usize>) -> Vec<Vec<usize>> {
     return a;
 }
 
-fn eval(v: &Vec<i64>) -> i64 {
-    *v.iter().max().unwrap()
+fn eval(v: &Vec<i64>, stat: &Stat) -> i64 {
+    let mut m = 0;
+    for i in 0..v.len() {
+        let x = 10_000 * v[i] / stat.best[i];
+        if x > m {
+            m = x;
+        }
+    }
+    return m;
 }
 
 fn get_seeds(n: usize) -> Vec<Seed> {
@@ -72,6 +80,23 @@ impl Seed {
     }
 }
 
+struct Stat {
+    best: Vec<i64>,
+}
+
+impl Stat {
+    fn new(seeds: &Vec<Seed>) -> Stat {
+        let mut best = seeds[0].x.clone();
+        for seed in seeds.iter() {
+            for (i, &x) in seed.x.iter().enumerate() {
+                if x > best[i] {
+                    best[i] = x;
+                }
+            }
+        }
+        return Stat {best: best};
+    }
+}
 
 fn harvest(n: usize, x: &Vec<Seed>, a: &Vec<Vec<usize>>) -> Vec<Seed> {
     if env::var("VISUALIZER") == Ok("1".to_string()) {
