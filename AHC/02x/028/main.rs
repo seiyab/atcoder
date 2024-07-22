@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::stdin;
 use std::str::FromStr;
+use std::rc::Rc;
 
 fn main() {
     let (n, m): (usize, usize) = get_pair();
@@ -27,13 +28,13 @@ fn main() {
     }
     
     let cur = (si, sj);
-    let init = Env::new(m, &cur, a[si][sj]);
+    let init = Rc::new(Env::new(m, &cur, a[si][sj]));
     let mut b = BeamSearch::new(10, vec![init]);
     for _ in 0..m {
         b.search(&words);
     }
 
-    for (_, i, j) in b.best().steps.iter() {
+    for (i, j) in b.best().steps() {
         println!("{} {}", i, j);
     }
 }
@@ -43,6 +44,7 @@ struct Env {
     score: i64,
     steps: Vec<(char, usize, usize)>,
     todo: HashSet<usize>,
+    prev: Option<Rc<Env>>,
 }
 
 impl Env {
@@ -51,49 +53,70 @@ impl Env {
         for i in 0..m {
             todo.insert(i);
         }
-        return Env{score: 0, steps: vec![(c, s.0, s.1)], todo: todo};
+        return Env{score: 0, steps: vec![(c, s.0, s.1)], todo: todo, prev: None};
     }
 }
 
-impl State for Env {
+impl Env {
+    fn steps(&self) -> Vec<(usize, usize)> {
+        let mut v = match &self.prev {
+            None => Vec::new(),
+            Some(p) => p.steps(),
+        };
+        for (_, i, j) in self.steps.iter() {
+            v.push((*i, *j));
+        }
+        return v;
+    }
+}
+
+impl State for Rc<Env> {
     type Action = (Word, usize);
     type Input = Vec<Word>;
     
     fn estimate(&self, action: &Self::Action) -> i64 {
         let (word, idx_b) = action;
         let idx = *idx_b;
-        let last_t = self.steps.last().unwrap();
+        let steps = &self.as_ref().steps;
+        let last_t = steps.last().unwrap();
         let last = (last_t.1, last_t.2);
-        if last_chunk::<2>(&self.steps) == Some([word.s[0], word.s[1]]) {
+        if last_chunk::<2>(steps) == Some([word.s[0], word.s[1]]) {
             return word.estimate2(last, idx);
         }
-        if last_chunk::<1>(&self.steps) == Some([word.s[0]]) {
+        if last_chunk::<1>(steps) == Some([word.s[0]]) {
             return word.estimate1(last, idx);
         }
         return word.estimate0(last, idx);
     }
 
-    fn apply(mut self, action: &Self::Action) -> Self {
+    fn apply(self, action: &Self::Action) -> Self {
         let (word, idx_b) = action;
         let idx = *idx_b;
         let e = self.estimate(action);
-        self.score += e;
-        let dup = if last_chunk::<2>(&self.steps) == Some([word.s[0], word.s[1]]) {
+        let steps = &self.as_ref().steps;
+        let mut next = Env {
+            score: self.score,
+            steps: Vec::new(),
+            todo: self.todo.clone(),
+            prev: Some(Rc::clone(&self)),
+        };
+        next.score += e;
+        let dup = if last_chunk::<2>(steps) == Some([word.s[0], word.s[1]]) {
             2
-        } else if last_chunk::<1>(&self.steps) == Some([word.s[0]]) {
+        } else if last_chunk::<1>(steps) == Some([word.s[0]]) {
             1
         } else { 0 };
         for i in dup..word.paths[idx].steps.len() {
             let paths = &word.paths[idx];
-            self.steps.push((word.s[i], paths.steps[i].0, paths.steps[i].1));
+            next.steps.push((word.s[i], paths.steps[i].0, paths.steps[i].1));
         }
-        self.todo.remove(&word.idx);
-        return self;
-    }
+        next.todo.remove(&word.idx);
+        return Rc::new(next);
 
+    }
     fn available_actions(&self, input: &Self::Input) -> Vec<Self::Action> {
         let mut acs = Vec::new();
-        for i in self.todo.iter() {
+        for i in self.as_ref().todo.iter() {
             let word = &input[*i];
             for j in 0..word.paths.len() {
                 acs.push((word.clone(), j));
