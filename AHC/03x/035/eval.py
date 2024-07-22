@@ -7,12 +7,10 @@ def main():
     for p in Path("./in").iterdir():
         if p.is_dir():
             continue
-        # if p.name != "0000.txt":
-        #     continue
         with open(p, 'r') as f:
             d = f.read()
         o = subprocess.run("./main", input=d, check=True, capture_output=True, text=True)
-        out = o.stdout #.decode('utf-8')
+        out = o.stdout
         local_score = g(d, out)
         print(f"{p.name}: {local_score}")
         score += g(d, out)

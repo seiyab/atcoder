@@ -10,9 +10,27 @@ fn main() {
         if i != 0 {
             x = harvest(n, &x, &a);
         }
-        a = random_planting(n);
+        a = planting(n, &x);
         print_planting(&a);
     }
+}
+
+fn planting(n: usize, x: &Vec<Seed>) -> Vec<Vec<usize>> {
+    let mut xi = x.iter().enumerate().collect::<Vec<_>>();
+    xi.sort_by_key(|&(_, ref s)| -eval(&s.x));
+    let mut a = Vec::new();
+    for i in 0..n {
+        let mut l = Vec::new();
+        for j in 0..n {
+            l.push(xi[i * n + j].0);
+        }
+        a.push(l)
+    }
+    return a
+}
+
+fn eval(v: &Vec<i64>) -> i64 {
+    *v.iter().max().unwrap()
 }
 
 fn get_seeds(n: usize) -> Vec<Seed> {
