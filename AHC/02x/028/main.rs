@@ -14,10 +14,11 @@ fn main() {
         }
         v
     };
-    
+
+    let dict = make_dict(&a);
     let mut words = Vec::new();
     for (i, s) in t.iter().enumerate() {
-        words.push(Word::new(s.clone(), &a, i));
+        words.push(Word::new(n, i, s.clone(), &dict));
     }
     
     let mut todo: HashSet<usize> = HashSet::new();
@@ -27,7 +28,7 @@ fn main() {
     
     let cur = (si, sj);
     let init = Env::new(m, &cur, a[si][sj]);
-    let mut b = BeamSearch::new(100, vec![init]);
+    let mut b = BeamSearch::new(10, vec![init]);
     for _ in 0..m {
         b.search(&words);
     }
@@ -55,40 +56,48 @@ impl Env {
 }
 
 impl State for Env {
-    type Action = Word;
+    type Action = (Word, usize);
     type Input = Vec<Word>;
     
     fn estimate(&self, action: &Self::Action) -> i64 {
+        let (word, idx_b) = action;
+        let idx = *idx_b;
         let last_t = self.steps.last().unwrap();
         let last = (last_t.1, last_t.2);
-        if last_chunk::<2>(&self.steps) == Some([action.s[0], action.s[1]]) {
-            return action.estimate2(last);
+        if last_chunk::<2>(&self.steps) == Some([word.s[0], word.s[1]]) {
+            return word.estimate2(last, idx);
         }
-        if last_chunk::<1>(&self.steps) == Some([action.s[0]]) {
-            return action.estimate1(last);
+        if last_chunk::<1>(&self.steps) == Some([word.s[0]]) {
+            return word.estimate1(last, idx);
         }
-        return action.estimate0(last);
+        return word.estimate0(last, idx);
     }
 
     fn apply(mut self, action: &Self::Action) -> Self {
+        let (word, idx_b) = action;
+        let idx = *idx_b;
         let e = self.estimate(action);
         self.score += e;
-        let dup = if last_chunk::<2>(&self.steps) == Some([action.s[0], action.s[1]]) {
+        let dup = if last_chunk::<2>(&self.steps) == Some([word.s[0], word.s[1]]) {
             2
-        } else if last_chunk::<1>(&self.steps) == Some([action.s[0]]) {
+        } else if last_chunk::<1>(&self.steps) == Some([word.s[0]]) {
             1
         } else { 0 };
-        for i in dup..action.steps.len() {
-            self.steps.push((action.s[i], action.steps[i].0, action.steps[i].1));
+        for i in dup..word.paths[idx].steps.len() {
+            let paths = &word.paths[idx];
+            self.steps.push((word.s[i], paths.steps[i].0, paths.steps[i].1));
         }
-        self.todo.remove(&action.idx);
+        self.todo.remove(&word.idx);
         return self;
     }
 
     fn available_actions(&self, input: &Self::Input) -> Vec<Self::Action> {
         let mut acs = Vec::new();
         for i in self.todo.iter() {
-            acs.push(input[*i].clone());
+            let word = &input[*i];
+            for j in 0..word.paths.len() {
+                acs.push((word.clone(), j));
+            }
         }
         return acs;
     }
@@ -106,43 +115,96 @@ fn last_chunk<const N: usize>(v: &Vec<(char, usize, usize)>) -> Option<[char; N]
 }
 
 #[derive(Clone)]
-struct Word {
-    idx: usize,
-    s: Vec<char>,
+struct Path {
+    cost: i64,
+    difficulty: i64,
     steps: Vec<(usize, usize)>,
 }
 
-impl Word {
-    fn new(s: Vec<char>, a: &Vec<Vec<char>>, idx: usize) -> Word {
-        let mut dict = HashMap::new();
-        for (i, x) in a.iter().enumerate() {
-            for (j, y) in x.iter().enumerate() {
-                let c = dict.entry(*y).or_insert(Vec::new());
-                c.push((i, j));
-            }
+impl Path {
+    fn new(n: usize, steps: Vec<(usize, usize)>) -> Path {
+        let mut cst = 0;
+        for i in 0..steps.len()-1 {
+            cst += cost(steps[i], steps[i+1]);
         }
-        let mut b = BeamSearch::new(10, vec![WordEnv{n: a.len(), word: s.clone(), path: Vec::new()}]);
-        for _ in 0..s.len() {
-            b.search(&dict);
-        }
-        return Word{idx: idx, s: s, steps: b.best().path.clone()};
+        // let difficulty = cst + cost(steps[0], (n/2, n/2))/8;
+        let difficulty = cst + cost(steps[0], (n/2, n/2))/10;
+        return Path{cost: cst, difficulty: difficulty, steps: steps};
     }
     
     fn estimate0(&self, pos: (usize, usize)) -> i64 {
-        -cost(pos, self.steps[0])
+        -cost(pos, self.steps[0]) - self.cost
     }
     
     fn estimate1(&self, pos: (usize, usize)) -> i64 {
         let c = cost(pos, self.steps[1]);
         let d = cost(self.steps[0], self.steps[1]);
-        d - c
+        d - c - self.cost
     }
     
     fn estimate2(&self, pos: (usize, usize)) -> i64 {
         let c = cost(pos, self.steps[2]);
         let d0 = cost(self.steps[1], self.steps[2]);
         let d1 = cost(self.steps[1], self.steps[2]);
-        d0 + d1 - c
+        d0 + d1 - c - self.cost
+    }
+}
+
+#[derive(Clone)]
+struct Word {
+    idx: usize,
+    s: Vec<char>,
+    difficulty: i64,
+    paths: Vec<Path>,
+}
+
+impl Word {
+    fn new(
+        n: usize,
+        idx: usize,
+        s: Vec<char>,
+        dict: &HashMap<char, Vec<(usize, usize)>>,
+    ) -> Word {
+        let mut paths = Vec::new();
+        for start in dict.get(&s[0]).unwrap().iter().take(10) {
+            let mut b = BeamSearch::new(30,
+                vec![WordEnv{n: n, word: s.clone(), path: vec![start.clone()]}],
+            );
+            for _ in 1..s.len() {
+                b.search(&dict);
+            }
+            for bm in b.beam.iter().take(7) {
+                paths.push(Path::new(n, bm.path.clone()));
+            }
+        }
+        paths = unique_edge(&paths);
+        paths.sort_by_key(|p| p.difficulty);
+        paths.truncate(10);
+        return Word{
+            idx: idx,
+            s: s,
+            difficulty: Self::calc_difficulty(&paths),
+            paths: paths,
+        };
+    }
+
+    fn estimate0(&self, pos: (usize, usize), path_idx: usize) -> i64 {
+        self.difficulty + self.paths[path_idx].estimate0(pos)
+    }
+    
+    fn estimate1(&self, pos: (usize, usize), path_idx: usize) -> i64 {
+        self.difficulty + self.paths[path_idx].estimate1(pos)
+    }
+    
+    fn estimate2(&self, pos: (usize, usize), path_idx: usize) -> i64 {
+        self.difficulty + self.paths[path_idx].estimate2(pos)
+    }
+    
+    fn calc_difficulty(ps: &Vec<Path>) -> i64 {
+         if ps.len() < 2 {
+            return ps[0].difficulty;
+        }
+        return ps[1].difficulty;
     }
 }
 
@@ -168,14 +230,16 @@ impl State for WordEnv {
         let prev = self.path.last().unwrap_or(&center);
         let mut d = cost(prev.clone(), action.clone());
         if self.path.len() == 4 {
-            d += cost(action.clone(), center) / 2;
+            d += cost(action.clone(), center) / 6;
         }
         return -d;
     }
+
     fn apply(mut self, action: &Self::Action) -> Self {
         self.path.push(action.clone());
         return self;
     }
+
     fn available_actions(&self, dict: &Self::Input) -> Vec<Self::Action> {
         let l = self.path.len();
         let nc = self.word[l];
@@ -221,6 +285,38 @@ trait State {
     fn estimate(&self, action: &Self::Action) -> i64;
     fn apply(self, action: &Self::Action) -> Self;
     fn available_actions(&self, input: &Self::Input) -> Vec<Self::Action>;
+}
+
+fn make_dict(a: &Vec<Vec<char>>) -> HashMap<char, Vec<(usize, usize)>> {
+    let mut dict = HashMap::new();
+    for (i, x) in a.iter().enumerate() {
+        for (j, y) in x.iter().enumerate() {
+            let c = dict.entry(*y).or_insert(Vec::new());
+            c.push((i, j));
+        }
+    }
+    
+    let center = (a.len()/2, a.len()/2);
+    for (_, v) in dict.iter_mut() {
+        v.sort_by_key(|&(i, j)| cost((i, j), center));
+        v.truncate(20);
+    }
+    
+    return dict;
+}
+
+fn unique_edge(paths: &Vec<Path>) -> Vec<Path> {
+    let mut v = Vec::new();
+    let mut s = HashSet::new();
+    for p in paths.iter() {
+        let edge = (p.steps[0], p.steps[p.steps.len()-1]);
+        if s.contains(&edge) {
+            continue;
+        }
+        s.insert(edge);
+        v.push(p.clone());
+    }
+    return v;
 }
 
 #[allow(dead_code)]
