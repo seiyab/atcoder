@@ -18,15 +18,36 @@ fn main() {
 fn planting(n: usize, x: &Vec<Seed>) -> Vec<Vec<usize>> {
     let mut xi = x.iter().enumerate().collect::<Vec<_>>();
     xi.sort_by_key(|&(_, ref s)| -eval(&s.x));
-    let mut a = Vec::new();
-    for i in 0..n {
-        let mut l = Vec::new();
-        for j in 0..n {
-            l.push(xi[i * n + j].0);
+    let ii = xi.iter().map(|&(i, _)| i).collect::<Vec<_>>();
+    return center_first(n, ii);
+}
+
+fn center_first(n: usize, is: Vec<usize>) -> Vec<Vec<usize>> {
+    let (mut s, mut e) = (n/2-1, n/2);
+    let mut a = vec![vec![0; n]; n];
+    let mut i = 0;
+    loop {
+        for j in s..=e {
+            a[s][j] = is[i];
+            i += 1;
         }
-        a.push(l)
+        for j in (s+1)..e {
+            a[j][s] = is[i];
+            i += 1;
+            a[j][e] = is[i];
+            i += 1;
+        }
+        for j in s..=e {
+            a[e][j] = is[i];
+            i += 1;
+        }
+        if s == 0 {
+            break;
+        }
+        s -= 1;
+        e += 1;
     }
-    return a
+    return a;
 }
 
 fn eval(v: &Vec<i64>) -> i64 {
