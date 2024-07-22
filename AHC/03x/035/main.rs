@@ -10,15 +10,27 @@ fn main() {
         if i != 0 {
             x = harvest(n, &x, &a);
         }
-        a = planting(n, &x);
+        a = if i < 3 {
+            planting_max(n, &x)
+        } else {
+            planting_sum(n, &x)
+        };
         print_planting(&a);
     }
 }
 
-fn planting(n: usize, x: &Vec<Seed>) -> Vec<Vec<usize>> {
+fn planting_max(n: usize, x: &Vec<Seed>) -> Vec<Vec<usize>> {
     let stat = Stat::new(x);
     let mut xi = x.iter().enumerate().collect::<Vec<_>>();
-    xi.sort_by_key(|&(_, ref s)| -eval(&s.x, &stat));
+    xi.sort_by_key(|&(_, ref s)| -eval_max(&s.x, &stat));
+    let ii = xi.iter().map(|&(i, _)| i).collect::<Vec<_>>();
+    return center_first(n, ii);
+}
+
+fn planting_sum(n: usize, x: &Vec<Seed>) -> Vec<Vec<usize>> {
+    let stat = Stat::new(x);
+    let mut xi = x.iter().enumerate().collect::<Vec<_>>();
+    xi.sort_by_key(|&(_, ref s)| -eval_sum(&s.x, &stat));
     let ii = xi.iter().map(|&(i, _)| i).collect::<Vec<_>>();
     return center_first(n, ii);
 }
@@ -51,7 +63,7 @@ fn center_first(n: usize, is: Vec<usize>) -> Vec<Vec<usize>> {
     return a;
 }
 
-fn eval(v: &Vec<i64>, stat: &Stat) -> i64 {
+fn eval_max(v: &Vec<i64>, stat: &Stat) -> i64 {
     let mut m = 0;
     for i in 0..v.len() {
         let x = 10_000 * v[i] / stat.best[i];
@@ -60,6 +72,10 @@ fn eval(v: &Vec<i64>, stat: &Stat) -> i64 {
         }
     }
     return m;
+}
+
+fn eval_sum(v: &Vec<i64>, stat: &Stat) -> i64 {
+    return v.iter().sum();
 }
 
 fn get_seeds(n: usize) -> Vec<Seed> {
