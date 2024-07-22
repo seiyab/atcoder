@@ -2,6 +2,7 @@ use std::io::stdin;
 use std::str::FromStr;
 use std::env;
 use std::cmp::min;
+use std::cmp::max;
 
 fn main() {
     let (n, _m, t_max): (usize, usize, usize) = get_triple();
@@ -60,14 +61,16 @@ fn center_first(n: usize, is: Vec<usize>) -> Vec<Vec<usize>> {
 }
 
 fn eval(v: &Vec<i64>, ctx: &GlobalContext) -> i64 {
-    let l = v.len();
+    let l = ctx.stat.ordered.len();
     let j = min(l, l * ctx.t / ctx.t_max + 2);
     if l == j {
         return v.iter().sum();
     }
-    let mut iv = v.iter().enumerate().collect::<Vec<_>>();
-    iv.sort_by_key(|&(i, &x)| - (10_000 * x + ctx.stat.best[i]));
-    return iv.iter().take(j).map(|&(_, x)| x).sum();
+    let mut iv = v.iter().enumerate().map(&|(i, &x)| {
+        max(0, x - ctx.stat.ordered[j][i])
+    }).collect::<Vec<_>>();
+    iv.sort_by_key(|&x| -x);
+    return iv.iter().sum();
 }
 
 fn get_seeds(n: usize) -> Vec<Seed> {
@@ -96,19 +99,33 @@ struct GlobalContext {
 
 struct Stat {
     best: Vec<i64>,
+    ordered: Vec<Vec<i64>>,
 }
 
 impl Stat {
     fn new(x: &Vec<Seed>) -> Stat {
         let mut best = vec![0; x[0].x.len()];
-        for s in x {
-            for i in 0..s.x.len() {
-                if s.x[i] > best[i] {
-                    best[i] = s.x[i];
-                }
+        let mut tr = vec![vec![0; x.len()]; x[0].x.len()];
+        for (i, s) in x.iter().enumerate() {
+            for j in 0..s.x.len() {
+                tr[j][i] = s.x[j];
             }
         }
-        return Stat {best: best};
+        for i in 0..tr.len() {
+            tr[i].sort_by_key(|&x| -x);
+        }
+        let mut ordered = Vec::new();
+        for i in 0..x.len() {
+            let mut v = Vec::new();
+            for j in 0..tr.len() {
+                v.push(tr[j][i]);
+            }
+            ordered.push(v);
+        }
+        return Stat {
+            best: best,
+            ordered: ordered,
+        };
     }
 }
 
