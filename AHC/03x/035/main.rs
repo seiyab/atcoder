@@ -1,8 +1,8 @@
 use std::io::stdin;
 use std::str::FromStr;
 use std::env;
-use std::cmp::min;
-use std::cmp::max;
+// use std::cmp::min;
+// use std::cmp::max;
 
 fn main() {
     let (n, _m, t_max): (usize, usize, usize) = get_triple();
@@ -19,10 +19,39 @@ fn main() {
 }
 
 fn planting(n: usize, x: &Vec<Seed>, ctx: &GlobalContext) -> Vec<Vec<usize>> {
-    let mut xi = x.iter().enumerate().collect::<Vec<_>>();
-    xi.sort_by_key(|&(_, ref s)| -eval(&s.x, ctx));
-    let ii = xi.iter().map(|&(i, _)| i).collect::<Vec<_>>();
-    return center_first(n, ii);
+    let xi = x.iter().enumerate().collect::<Vec<_>>();
+    let mut c = xi.iter().map(|&(i, x)| (i, -eval(&x.x))).collect::<Vec<_>>();
+    c.sort_by_key(|&(_, s)| s);
+    let mut ks = Vec::new();
+    for i in 0..x[0].x.len() {
+        let mut k = xi.iter().map(|&(j, x)| (j, -eval2(&x.x, i))).collect::<Vec<_>>();
+        k.sort_by_key(|&(_, s)| s);
+        ks.push(k);
+    }
+
+    let mut s = Vec::new();
+    let mut used = vec![false; x.len()];
+    let z = if (ctx.t_max - ctx.t) < 3 { n * n } else { 4 };
+    for (i, _) in c.iter().take(z) {
+        s.push(*i);
+        used[*i] = true;
+    }
+    let mut is = vec![0; ks.len()];
+    while s.len() < n * n {
+        for (ik, k) in ks.iter().enumerate() {
+            if s.len() >= n * n {
+                break;
+            }
+            let i = k[is[ik]].0;
+            is[ik] += 1;
+            if !used[i] {
+                s.push(i);
+                used[i] = true;
+            }
+        }
+    }
+
+    return center_first(n, s);
 }
 
 #[allow(dead_code)]
@@ -60,17 +89,12 @@ fn center_first(n: usize, is: Vec<usize>) -> Vec<Vec<usize>> {
     return a;
 }
 
-fn eval(v: &Vec<i64>, ctx: &GlobalContext) -> i64 {
-    let l = ctx.stat.ordered.len();
-    let j = min(l, l * ctx.t / ctx.t_max + 2);
-    if l == j {
-        return v.iter().sum();
-    }
-    let mut iv = v.iter().enumerate().map(&|(i, &x)| {
-        max(0, x - ctx.stat.ordered[j][i])
-    }).collect::<Vec<_>>();
-    iv.sort_by_key(|&x| -x);
-    return iv.iter().sum();
+fn eval(v: &Vec<i64>) -> i64 {
+    v.iter().sum()
+}
+
+fn eval2(v: &Vec<i64>, i: usize) -> i64 {
+    eval(v) + v[i] * v.len() as i64
 }
 
 fn get_seeds(n: usize) -> Vec<Seed> {
@@ -91,20 +115,20 @@ impl Seed {
     }
 }
 
+#[allow(dead_code)]
 struct GlobalContext {
     t_max: usize,
     t: usize,
     stat: Stat,
 }
 
+#[allow(dead_code)]
 struct Stat {
-    best: Vec<i64>,
     ordered: Vec<Vec<i64>>,
 }
 
 impl Stat {
     fn new(x: &Vec<Seed>) -> Stat {
-        let mut best = vec![0; x[0].x.len()];
         let mut tr = vec![vec![0; x.len()]; x[0].x.len()];
         for (i, s) in x.iter().enumerate() {
             for j in 0..s.x.len() {
@@ -123,7 +147,6 @@ impl Stat {
             ordered.push(v);
         }
         return Stat {
-            best: best,
             ordered: ordered,
         };
     }
