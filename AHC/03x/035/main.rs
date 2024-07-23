@@ -2,7 +2,7 @@ use std::io::stdin;
 use std::str::FromStr;
 use std::env;
 // use std::cmp::min;
-use std::cmp::max;
+// use std::cmp::max;
 
 fn main() {
     let (n, _m, t_max): (usize, usize, usize) = get_triple();
@@ -12,7 +12,7 @@ fn main() {
         if t != 0 {
             x = harvest(n, &x, &a);
         }
-        let g = GlobalContext {t_max: t_max, t: t};
+        let g = GlobalContext {t_max: t_max, t: t, stat: Stat::new(&x)};
         a = planting(n, &x, &g);
         print_planting(&a);
     }
@@ -20,27 +20,34 @@ fn main() {
 
 fn planting(n: usize, x: &Vec<Seed>, ctx: &GlobalContext) -> Vec<Vec<usize>> {
     let xi = x.iter().enumerate().collect::<Vec<_>>();
-    let mut used = vec![false; x.len()];
-    let mut total = vec![0; x[0].x.len()];
-    
+    let mut c = xi.iter().map(|&(i, x)| (i, -eval(&x.x))).collect::<Vec<_>>();
+    c.sort_by_key(|&(_, s)| s);
+    let mut ks = Vec::new();
+    for i in 0..x[0].x.len() {
+        let mut k = xi.iter().map(|&(j, x)| (j, -eval2(&x.x, i))).collect::<Vec<_>>();
+        k.sort_by_key(|&(_, s)| s);
+        ks.push(k);
+    }
+
     let mut s = Vec::new();
+    let mut used = vec![false; x.len()];
+    let z = if (ctx.t_max - ctx.t) < 3 { n * n } else { 4 };
+    for (i, _) in c.iter().take(z) {
+        s.push(*i);
+        used[*i] = true;
+    }
+    let mut is = vec![0; ks.len()];
     while s.len() < n * n {
-        let bound = if s.len() == 0 {
-            vec![0; total.len()]
-        } else {
-            total.iter().map(|&x| x / s.len() as i64).collect()
-        };
-        let mut values = xi.iter().map(|&(i, x)| (i, eval2(&x.x, &bound))).collect::<Vec<_>>();
-        values.sort_by_key(|&(_, x)| -x);
-        for (i, _) in values.iter() {
-            if used[*i] {
-                continue;
+        for (ik, k) in ks.iter().enumerate() {
+            if s.len() >= n * n {
+                break;
             }
-            used[*i] = true;
-            for j in 0..total.len() {
-                total[j] += x[*i].x[j];
+            let i = k[is[ik]].0;
+            is[ik] += 1;
+            if !used[i] {
+                s.push(i);
+                used[i] = true;
             }
-            s.push(*i);
         }
     }
 
@@ -86,8 +93,8 @@ fn eval(v: &Vec<i64>) -> i64 {
     v.iter().sum()
 }
 
-fn eval2(v: &Vec<i64>, bound: &Vec<i64>) -> i64 {
-    v.iter().enumerate().map(|(i, &x)| max(x, bound[i])).sum()
+fn eval2(v: &Vec<i64>, i: usize) -> i64 {
+    eval(v) + v[i] * v.len() as i64
 }
 
 fn get_seeds(n: usize) -> Vec<Seed> {
@@ -112,6 +119,7 @@ impl Seed {
 struct GlobalContext {
     t_max: usize,
     t: usize,
+    stat: Stat,
 }
 
 #[allow(dead_code)]
