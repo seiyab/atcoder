@@ -32,12 +32,23 @@ fn solve(
     la: usize,
     lb: usize,
 ) -> (Vec<usize>, Vec<Step>) {
-    let aa: Vec<_> = (0..la).map(|i| i % la).collect();
+    let aa: Vec<_> = (0..la).map(|i| i % n).collect();
     let mut bs: HashSet<usize> = HashSet::new();
+    let mut steps: Vec<Step> = Vec::new();
     let mut pos = 0;
-    let path = dijkstra(edges, pos, ts[0]);
-    println!("{:?}", path);
-    (Vec::new(), Vec::new())
+    for t in ts.iter().copied() {
+        let path = dijkstra(&edges, pos, t);
+        for p in path.iter().copied() {
+            if !bs.contains(&p) {
+                steps.push(signal(1, p, 0));
+                bs = HashSet::new();
+                bs.insert(p);
+            }
+            steps.push(mv(p));
+            pos = p;
+        }
+    }
+    (aa, steps)
 }
 
 enum Step {
@@ -78,7 +89,7 @@ fn get_edges(n: usize, m: usize) -> Vec<HashSet<usize>> {
     return e;
 }
 
-fn dijkstra(edges: Vec<HashSet<usize>>, start: usize, goal: usize) -> Vec<usize> {
+fn dijkstra(edges: &Vec<HashSet<usize>>, start: usize, goal: usize) -> Vec<usize> {
     let mut dist: Vec<_> = (0..edges.len()).map(|_| usize::MAX).collect();
     let mut from: Vec<_> = (0..edges.len()).map(|_| usize::MAX).collect();
     let mut heap = BinaryHeap::new();
