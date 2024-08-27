@@ -12,7 +12,7 @@ fn main() {
     let ts: Vec<usize> = get_vec();
     discard_xys(n);
     
-    let (aa, steps) = solve(n, edges, ts, la, lb);
+    let (aa, steps) = solve(n, &edges, &ts, la, lb);
     for (i, a) in aa.iter().enumerate() {
         if i != 0 {
             print!(" ");
@@ -27,28 +27,84 @@ fn main() {
 
 fn solve(
     n: usize,
-    edges: Vec<HashSet<usize>>,
-    ts: Vec<usize>,
+    edges: &Vec<HashSet<usize>>,
+    ts: &Vec<usize>,
     la: usize,
     lb: usize,
 ) -> (Vec<usize>, Vec<Step>) {
-    let aa: Vec<_> = (0..la).map(|i| i % n).collect();
+    let path = entire_path(n, edges, ts);
+    // let mut as_fw = Vec::new();
+    let mut as_fw: Vec<_> = (0..la).map(|i| i % n).collect();
+    let mut as_rv: Vec<_> = (0..n).collect();
+    let mut as_yet: HashSet<_> = (0..n).collect();
     let mut bs: HashSet<usize> = HashSet::new();
     let mut steps: Vec<Step> = Vec::new();
     let mut pos = 0;
-    for t in ts.iter().copied() {
-        let path = dijkstra(&edges, pos, t);
-        for p in path.iter().copied() {
-            if !bs.contains(&p) {
-                steps.push(signal(1, p, 0));
+    for i in 0..path.len() {
+        let p = path[i];
+        if !bs.contains(&p) {
+            if as_rv[p] < n {
+                let mut u = as_rv[p];
+                let mut v = u + 1;
+                for j in 1..(lb*2) {
+                    if i + j >= path.len() {
+                        break;
+                    }
+                    let q = path[i+j];
+                    if q == usize::MAX {
+                        break;
+                    }
+                    if q < u {
+                        if v - q <= lb {
+                            u = q;
+                        } else {
+                            break;
+                        }
+                    } else if v <= q {
+                        if q + 1 - u <= lb {
+                            v = q + 1;
+                        } else {
+                            break;
+                        }
+                    } else {
+                        continue;
+                    }
+                }
                 bs = HashSet::new();
-                bs.insert(p);
-            }
-            steps.push(mv(p));
-            pos = p;
+                for j in u..v {
+                    bs.insert(j);
+                }
+                steps.push(signal(v - u, u, 0));
+            } /* else {
+                let mut pp = Vec::new();
+                for j in 0..lb {
+
+                }
+                pp.push(p);
+            } */
+            // steps.push(signal(1, p, 0));
+            // bs = HashSet::new();
+            // bs.insert(p);
         }
+        steps.push(mv(p));
+        pos = p;
     }
-    (aa, steps)
+    (as_fw, steps)
+}
+
+fn entire_path(
+    n: usize,
+    edges: &Vec<HashSet<usize>>,
+    ts: &Vec<usize>,
+) -> Vec<usize> {
+    let mut path = Vec::new();
+    let mut pos = 0;
+    for t in ts.iter().copied() {
+        let p = dijkstra(&edges, pos, t);
+        path.extend(p);
+        pos = t;
+    }
+    return path;
 }
 
 enum Step {
@@ -199,4 +255,31 @@ fn vec_max(xs: &Vec<i64>) -> i64 {
 #[allow(dead_code)]
 fn vec_sum(xs: &Vec<i64>) -> i64 {
     xs.iter().fold(0, |acc, &x| acc+x)
+}
+
+#[allow(dead_code)]
+fn solve_baseline(
+    n: usize,
+    edges: Vec<HashSet<usize>>,
+    ts: Vec<usize>,
+    la: usize,
+    lb: usize,
+) -> (Vec<usize>, Vec<Step>) {
+    let aa: Vec<_> = (0..la).map(|i| i % n).collect();
+    let mut bs: HashSet<usize> = HashSet::new();
+    let mut steps: Vec<Step> = Vec::new();
+    let mut pos = 0;
+    for t in ts.iter().copied() {
+        let path = dijkstra(&edges, pos, t);
+        for p in path.iter().copied() {
+            if !bs.contains(&p) {
+                steps.push(signal(1, p, 0));
+                bs = HashSet::new();
+                bs.insert(p);
+            }
+            steps.push(mv(p));
+            pos = p;
+        }
+    }
+    (aa, steps)
 }
