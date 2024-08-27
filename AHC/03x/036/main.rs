@@ -34,8 +34,8 @@ fn solve(
 ) -> (Vec<usize>, Vec<Step>) {
     let path = entire_path(n, edges, ts);
     // let mut as_fw = Vec::new();
-    let mut as_fw: Vec<_> = (0..la).map(|i| i % n).collect();
-    let mut as_rv: Vec<_> = (0..n).collect();
+    let mut as_fw = greedy_as(&path);
+    let mut as_rv = rev_unique(&as_fw, n);
     let mut as_yet: HashSet<_> = (0..n).collect();
     let mut bs: HashSet<usize> = HashSet::new();
     let mut steps: Vec<Step> = Vec::new();
@@ -43,53 +43,23 @@ fn solve(
     for i in 0..path.len() {
         let p = path[i];
         if !bs.contains(&p) {
-            if as_rv[p] < n {
-                let mut u = as_rv[p];
-                let mut v = u + 1;
-                for j in 1..(lb*2) {
-                    if i + j >= path.len() {
-                        break;
-                    }
-                    let q = path[i+j];
-                    if q == usize::MAX {
-                        break;
-                    }
-                    if q < u {
-                        if v - q <= lb {
-                            u = q;
-                        } else {
-                            break;
-                        }
-                    } else if v <= q {
-                        if q + 1 - u <= lb {
-                            v = q + 1;
-                        } else {
-                            break;
-                        }
-                    } else {
-                        continue;
-                    }
-                }
-                bs = HashSet::new();
-                for j in u..v {
-                    bs.insert(j);
-                }
-                steps.push(signal(v - u, u, 0));
-            } /* else {
-                let mut pp = Vec::new();
-                for j in 0..lb {
+            let (s, bb) = select_bs(&as_fw, &as_rv, n, &path, i, lb);
+            steps.push(s);
+            bs = bb;
+        } /* else {
+            let mut pp = Vec::new();
+            for j in 0..lb {
 
-                }
-                pp.push(p);
-            } */
-            // steps.push(signal(1, p, 0));
-            // bs = HashSet::new();
-            // bs.insert(p);
-        }
+            }
+            pp.push(p);
+        } */
+        // steps.push(signal(1, p, 0));
+        // bs = HashSet::new();
+        // bs.insert(p);
         steps.push(mv(p));
         pos = p;
     }
-    (as_fw, steps)
+    (fill_dummy(&as_fw, la), steps)
 }
 
 fn entire_path(
@@ -196,6 +166,73 @@ impl PartialOrd for PathState {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
+}
+
+#[allow(dead_code)]
+fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<usize>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> (Step, HashSet<usize>) {
+    let mut u = as_rv[path[i]];
+    let mut v = u + 1;
+    for j in 1..(lb*2) {
+        if i + j >= path.len() {
+            break;
+        }
+        let p = path[i+j];
+        let q = as_rv[p];
+        if q == usize::MAX {
+            break;
+        }
+        if q < u {
+            if v - q <= lb {
+                u = q;
+            } else {
+                break;
+            }
+        } else if v <= q {
+            if q + 1 - u <= lb {
+                v = q + 1;
+            } else {
+                break;
+            }
+        } else {
+            continue;
+        }
+    }
+    let mut bs = HashSet::new();
+    for j in u..v {
+        bs.insert(as_fw[j]);
+    }
+    (signal(v - u, u, 0), bs)
+}
+
+#[allow(dead_code)]
+fn rev_unique(v: &Vec<usize>, n: usize) -> Vec<usize> {
+    let mut r = vec![usize::MAX; n];
+    for (i, x) in v.iter().copied().enumerate() {
+        r[x] = i;
+    }
+    return r;
+}
+
+#[allow(dead_code)]
+fn greedy_as(path: &Vec<usize>) -> Vec<usize> {
+    let mut as_fw = Vec::new();
+    let mut as_yet = HashSet::new();
+    for p in path.iter().copied() {
+        if !as_yet.contains(&p) {
+            as_fw.push(p);
+            as_yet.insert(p);
+        }
+    }
+    return as_fw;
+}
+
+#[allow(dead_code)]
+fn fill_dummy(v: &Vec<usize>, l: usize) -> Vec<usize> {
+    let mut f = v.clone();
+    for i in v.len()..l {
+        f.push(0);
+    }
+    return f;
 }
 
 #[allow(dead_code)]
