@@ -47,7 +47,7 @@ fn solve(
     let path = entire_path(n, edges, ts);
     // let mut as_fw = Vec::new();
     let mut as_fw = greedy_as(&path);
-    let mut as_rv = rev_unique(&as_fw, n);
+    let mut as_rv = rev_as(&as_fw, n);
     let mut as_yet: HashSet<_> = (0..n).collect();
     let mut bs: HashSet<usize> = HashSet::new();
     let mut steps: Vec<Step> = Vec::new();
@@ -55,9 +55,9 @@ fn solve(
     for i in 0..path.len() {
         let p = path[i];
         if !bs.contains(&p) {
-            let (s, bb) = select_bs(&as_fw, &as_rv, n, &path, i, lb);
-            steps.push(s);
-            bs = bb;
+            let sig = select_bs(&as_fw, &as_rv, n, &path, i, lb).unwrap();
+            steps.push(sig.step());
+            bs = sig.bs(&as_fw);
         } /* else {
             let mut pp = Vec::new();
             for j in 0..lb {
@@ -108,6 +108,27 @@ impl Step {
             Step::Signal(len, src, dst) => format!("s {} {} {}", len, src, dst),
             Step::Move(dst) => format!("m {}", dst),
         }
+    }
+}
+
+struct Signal(usize, usize, usize);
+
+impl Signal {
+    fn step(&self) -> Step {
+        Step::Signal(self.0, self.1, self.2)
+    }
+    
+    fn bs(&self, as_fw: &Vec<usize>) -> HashSet<usize> {
+        let mut bs = HashSet::new();
+        let ai = self.1;
+        for i in ai..ai+self.len() {
+            bs.insert(as_fw[i]);
+        }
+        return bs;
+    }
+    
+    fn len(&self) -> usize {
+        self.0
     }
 }
 
@@ -181,17 +202,44 @@ impl PartialOrd for PathState {
 }
 
 #[allow(dead_code)]
-fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<usize>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> (Step, HashSet<usize>) {
-    let mut u = as_rv[path[i]];
+fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<HashSet<usize>>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> Option<Signal> {
+    let mut sts = as_rv[path[i]].iter().copied();
+    let hd = sts.next()?;
+    let mut sig = select_bs_local(hd, as_fw, as_rv, n, path, i, lb);
+    for st in sts {
+        let s = select_bs_local(st, as_fw, as_rv, n, path, i, lb);
+        if s.len() > sig.len() {
+            sig = s;
+        }
+    }
+    return Some(sig);
+}
+
+fn select_bs_local(start: usize, as_fw: &Vec<usize>, as_rv: &Vec<HashSet<usize>>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> Signal {
+    let mut u = start;
     let mut v = u + 1;
     for j in 1..(lb*2) {
         if i + j >= path.len() {
             break;
         }
         let p = path[i+j];
-        let q = as_rv[p];
-        if q == usize::MAX {
-            break;
+        let mut qs = as_rv[p].iter().copied();;
+        let mut q = match qs.next() {
+            Some(q) => q,
+            None => break,
+        };
+        for c in qs {
+            if c < u {
+                if u - c < u - q {
+                    q = c;
+                }
+            } else if c < v {
+                q = c;
+            } else {
+                if c - v < c - q {
+                    q = c;
+                }
+            }
         }
         if q < u {
             if v - q <= lb {
@@ -213,7 +261,16 @@ fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<usize>, n: usize, path: &Vec<usize>
     for j in u..v {
         bs.insert(as_fw[j]);
     }
-    (signal(v - u, u, 0), bs)
+    return Signal(v - u, u, 0);
+}
+
+#[allow(dead_code)]
+fn rev_as(v: &Vec<usize>, n: usize) -> Vec<HashSet<usize>> {
+    let mut r = vec![HashSet::new(); n];
+    for (i, x) in v.iter().copied().enumerate() {
+        r[x].insert(i);
+    }
+    return r;
 }
 
 #[allow(dead_code)]
