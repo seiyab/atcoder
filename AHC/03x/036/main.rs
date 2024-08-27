@@ -46,7 +46,7 @@ fn solve(
 ) -> (Vec<usize>, Vec<Step>) {
     let path = entire_path(n, edges, ts);
     // let mut as_fw = Vec::new();
-    let mut as_fw = greedy_as(&path);
+    let mut as_fw = greedy_as(&path, la);
     let mut as_rv = rev_as(&as_fw, n);
     let mut as_yet: HashSet<_> = (0..n).collect();
     let mut bs: HashSet<usize> = HashSet::new();
@@ -58,16 +58,7 @@ fn solve(
             let sig = select_bs(&as_fw, &as_rv, n, &path, i, lb).unwrap();
             steps.push(sig.step());
             bs = sig.bs(&as_fw);
-        } /* else {
-            let mut pp = Vec::new();
-            for j in 0..lb {
-
-            }
-            pp.push(p);
-        } */
-        // steps.push(signal(1, p, 0));
-        // bs = HashSet::new();
-        // bs.insert(p);
+        }
         steps.push(mv(p));
         pos = p;
     }
@@ -228,16 +219,22 @@ fn select_bs_local(start: usize, as_fw: &Vec<usize>, as_rv: &Vec<HashSet<usize>>
             Some(q) => q,
             None => break,
         };
+        let mut loss = if q < u { u - q } else { q - u };
         for c in qs {
             if c < u {
-                if u - c < u - q {
+                let l = u - c;
+                if l < loss {
                     q = c;
+                    loss = l;
                 }
             } else if c < v {
                 q = c;
+                loss = 0;
             } else {
-                if c - v < c - q {
+                let l = c + 1 - v;
+                if l < loss {
                     q = c;
+                    loss = l;
                 }
             }
         }
@@ -283,7 +280,24 @@ fn rev_unique(v: &Vec<usize>, n: usize) -> Vec<usize> {
 }
 
 #[allow(dead_code)]
-fn greedy_as(path: &Vec<usize>) -> Vec<usize> {
+fn greedy_as(path: &Vec<usize>, la: usize) -> Vec<usize> {
+    let mut as_fw = Vec::new();
+    let mut as_yet: HashSet<_> = path.iter().copied().collect();
+    for p in path.iter().copied() {
+        if as_yet.contains(&p) {
+            as_fw.push(p);
+            as_yet.remove(&p);
+        } else {
+            if as_yet.len() < la - as_fw.len() {
+                as_fw.push(p);
+            }
+        }
+    }
+    return as_fw;
+}
+
+#[allow(dead_code)]
+fn naive_greedy_as(path: &Vec<usize>) -> Vec<usize> {
     let mut as_fw = Vec::new();
     let mut as_yet = HashSet::new();
     for p in path.iter().copied() {
