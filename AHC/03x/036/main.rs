@@ -13,15 +13,27 @@ fn main() {
     discard_xys(n);
     
     let (aa, steps) = solve(n, &edges, &ts, la, lb);
-    for (i, a) in aa.iter().enumerate() {
-        if i != 0 {
-            print!(" ");
+    
+    if env::var("SCORE") == Ok("1".to_string()) { 
+        if steps.len() > 100_000 {
+            panic!("too many elements");
         }
-        print!("{}", a);
-    }
-    println!();
-    for s in steps {
-        println!("{}", s.to_string());
+        let s = steps.iter().filter(|a| match a {
+            &&Step::Signal(_, _, _) => true,
+            _ => false,
+        }).count();
+        println!("{}", s);
+    } else {
+        for (i, a) in aa.iter().enumerate() {
+            if i != 0 {
+                print!(" ");
+            }
+            print!("{}", a);
+        }
+        println!();
+        for s in steps {
+            println!("{}", s.to_string());
+        }
     }
 }
 
