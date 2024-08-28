@@ -72,8 +72,12 @@ fn entire_path(
 ) -> Vec<usize> {
     let mut path = Vec::new();
     let mut pos = 0;
+    let mut visited_edges = HashSet::new();
     for t in ts.iter().copied() {
-        let p = dijkstra(&edges, pos, t);
+        let p = dijkstra(&edges, &visited_edges, pos, t);
+        for i in 0..p.len()-1 {
+            visited_edges.insert(NormalizedEdge::from((p[i], p[i+1])));
+        }
         path.extend(p);
         pos = t;
     }
@@ -139,7 +143,12 @@ fn get_edges(n: usize, m: usize) -> Vec<HashSet<usize>> {
     return e;
 }
 
-fn dijkstra(edges: &Vec<HashSet<usize>>, start: usize, goal: usize) -> Vec<usize> {
+fn dijkstra(
+    edges: &Vec<HashSet<usize>>,
+    visited_edges: &HashSet<NormalizedEdge>,
+    start: usize,
+    goal: usize,
+) -> Vec<usize> {
     let mut dist: Vec<_> = (0..edges.len()).map(|_| usize::MAX).collect();
     let mut from: Vec<_> = (0..edges.len()).map(|_| usize::MAX).collect();
     let mut heap = BinaryHeap::new();
@@ -155,7 +164,9 @@ fn dijkstra(edges: &Vec<HashSet<usize>>, start: usize, goal: usize) -> Vec<usize
             continue;
         }
         for &next in edges[position].iter() {
-            let next_cost = cost + 1;
+            let e = NormalizedEdge::from((position, next));
+            let cost_delta = if visited_edges.contains(&e) { 99 } else { 100 };
+            let next_cost = cost + cost_delta;
             if next_cost < dist[next] {
                 heap.push(PathState { cost: next_cost, position: next });
                 dist[next] = next_cost;
@@ -192,6 +203,19 @@ impl PartialOrd for PathState {
     }
 }
 
+#[derive(PartialEq, Eq, Hash)]
+struct NormalizedEdge(usize, usize);
+
+impl From<(usize, usize)> for NormalizedEdge {
+    fn from((u, v): (usize, usize)) -> Self {
+        if u < v {
+            NormalizedEdge(u, v)
+        } else {
+            NormalizedEdge(v, u)
+        }
+    }
+}
+
 #[allow(dead_code)]
 fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> Option<Signal> {
     let mut sts = as_rv[path[i]].iter().copied();
@@ -216,7 +240,7 @@ fn select_bs_local(start: usize, as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, n:
             break;
         }
         let p = path[i+j];
-        let mut qs = as_rv[p].iter().copied();;
+        let mut qs = as_rv[p].iter().copied();
         let mut q = match qs.next() {
             Some(q) => q,
             None => break,
@@ -361,46 +385,4 @@ fn get_five<T: FromStr + Copy>() -> (T, T, T, T, T) {
 #[allow(dead_code)]
 fn get_chars() -> Vec<char> {
     get_line().chars().collect()
-}
-
-#[allow(dead_code)]
-fn vec_min(xs: &Vec<i64>) -> i64 {
-    xs.iter().map(|&x|x).fold(std::i64::MAX, std::cmp::min)
-}
-
-#[allow(dead_code)]
-fn vec_max(xs: &Vec<i64>) -> i64 {
-    xs.iter().map(|&x|x).fold(std::i64::MIN, std::cmp::max)
-}
-
-#[allow(dead_code)]
-fn vec_sum(xs: &Vec<i64>) -> i64 {
-    xs.iter().fold(0, |acc, &x| acc+x)
-}
-
-#[allow(dead_code)]
-fn solve_baseline(
-    n: usize,
-    edges: Vec<HashSet<usize>>,
-    ts: Vec<usize>,
-    la: usize,
-    lb: usize,
-) -> (Vec<usize>, Vec<Step>) {
-    let aa: Vec<_> = (0..la).map(|i| i % n).collect();
-    let mut bs: HashSet<usize> = HashSet::new();
-    let mut steps: Vec<Step> = Vec::new();
-    let mut pos = 0;
-    for t in ts.iter().copied() {
-        let path = dijkstra(&edges, pos, t);
-        for p in path.iter().copied() {
-            if !bs.contains(&p) {
-                steps.push(signal(1, p, 0));
-                bs = HashSet::new();
-                bs.insert(p);
-            }
-            steps.push(mv(p));
-            pos = p;
-        }
-    }
-    (aa, steps)
 }
