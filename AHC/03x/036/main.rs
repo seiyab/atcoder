@@ -47,13 +47,22 @@ fn solve(
     let as_fw = greedy_as(&path, la);
     let as_rv = rev_as(&as_fw, n);
     let mut bs: HashSet<usize> = HashSet::new();
+    let mut bs_arr = vec![usize::MAX; lb];
     let mut steps: Vec<Step> = Vec::new();
+    let mut next_left = true;
     for i in 0..path.len() {
         let p = path[i];
         if !bs.contains(&p) {
-            let sig = select_bs(&as_fw, &as_rv, &path, i, lb).unwrap();
+            let mut sig = select_bs(&as_fw, &as_rv, &path, i, lb).unwrap();
+            if next_left {
+                sig = sig.right(lb);
+            }
             steps.push(sig.step());
-            bs = sig.bs(&as_fw);
+            for i in 0..sig.len() {
+                bs_arr[i + sig.2] = as_fw[i + sig.1];
+            }
+            bs = bs_arr.iter().copied().collect();
+            next_left = !next_left;
         }
         steps.push(mv(p));
     }
@@ -104,17 +113,12 @@ impl Signal {
         Step::Signal(self.0, self.1, self.2)
     }
     
-    fn bs(&self, as_fw: &Vec<usize>) -> HashSet<usize> {
-        let mut bs = HashSet::new();
-        let ai = self.1;
-        for i in ai..ai+self.len() {
-            bs.insert(as_fw[i]);
-        }
-        return bs;
-    }
-    
     fn len(&self) -> usize {
         self.0
+    }
+    
+    fn right(&self, lb: usize) -> Signal {
+        Signal(self.0, self.1, lb - self.0)
     }
 }
 
