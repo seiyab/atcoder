@@ -2,7 +2,6 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::io::stdin;
 use std::str::FromStr;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 
@@ -45,28 +44,24 @@ fn solve(
     lb: usize,
 ) -> (Vec<usize>, Vec<Step>) {
     let path = entire_path(n, edges, ts);
-    // let mut as_fw = Vec::new();
-    let mut as_fw = greedy_as(&path, la);
-    let mut as_rv = rev_as(&as_fw, n);
-    let mut as_yet: HashSet<_> = (0..n).collect();
+    let as_fw = greedy_as(&path, la);
+    let as_rv = rev_as(&as_fw, n);
     let mut bs: HashSet<usize> = HashSet::new();
     let mut steps: Vec<Step> = Vec::new();
-    let mut pos = 0;
     for i in 0..path.len() {
         let p = path[i];
         if !bs.contains(&p) {
-            let sig = select_bs(&as_fw, &as_rv, n, &path, i, lb).unwrap();
+            let sig = select_bs(&as_fw, &as_rv, &path, i, lb).unwrap();
             steps.push(sig.step());
             bs = sig.bs(&as_fw);
         }
         steps.push(mv(p));
-        pos = p;
     }
-    (fill_dummy(&as_fw, la), steps)
+    return (fill_dummy(&as_fw, la), steps);
 }
 
 fn entire_path(
-    n: usize,
+    _n: usize,
     edges: &Vec<HashSet<usize>>,
     ts: &Vec<usize>,
 ) -> Vec<usize> {
@@ -87,10 +82,6 @@ fn entire_path(
 enum Step {
     Signal(usize, usize, usize),
     Move(usize),
-}
-
-fn signal(len: usize, src: usize, dst: usize) -> Step {
-    Step::Signal(len, src, dst)
 }
 
 fn mv(dst: usize) -> Step {
@@ -217,12 +208,12 @@ impl From<(usize, usize)> for NormalizedEdge {
 }
 
 #[allow(dead_code)]
-fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> Option<Signal> {
+fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, path: &Vec<usize>, i: usize, lb: usize) -> Option<Signal> {
     let mut sts = as_rv[path[i]].iter().copied();
     let hd = sts.next()?;
-    let (mut sig, mut score) = select_bs_local(hd, as_fw, as_rv, n, path, i, lb);
+    let (mut sig, mut score) = select_bs_local(hd, as_fw, as_rv, path, i, lb);
     for st in sts {
-        let (sg, sc) = select_bs_local(st, as_fw, as_rv, n, path, i, lb);
+        let (sg, sc) = select_bs_local(st, as_fw, as_rv, path, i, lb);
         if sc > score {
             sig = sg;
             score = sc;
@@ -231,7 +222,7 @@ fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, n: usize, path: &Vec<u
     return Some(sig);
 }
 
-fn select_bs_local(start: usize, as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> (Signal, usize) {
+fn select_bs_local(start: usize, as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, path: &Vec<usize>, i: usize, lb: usize) -> (Signal, usize) {
     let mut u = start;
     let mut v = u + 1;
     let mut score = 0;
@@ -337,7 +328,7 @@ fn naive_greedy_as(path: &Vec<usize>) -> Vec<usize> {
 #[allow(dead_code)]
 fn fill_dummy(v: &Vec<usize>, l: usize) -> Vec<usize> {
     let mut f = v.clone();
-    for i in v.len()..l {
+    for _ in v.len()..l {
         f.push(0);
     }
     return f;
