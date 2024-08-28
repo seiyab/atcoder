@@ -193,7 +193,7 @@ impl PartialOrd for PathState {
 }
 
 #[allow(dead_code)]
-fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<HashSet<usize>>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> Option<Signal> {
+fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> Option<Signal> {
     let mut sts = as_rv[path[i]].iter().copied();
     let hd = sts.next()?;
     let (mut sig, mut score) = select_bs_local(hd, as_fw, as_rv, n, path, i, lb);
@@ -207,7 +207,7 @@ fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<HashSet<usize>>, n: usize, path: &V
     return Some(sig);
 }
 
-fn select_bs_local(start: usize, as_fw: &Vec<usize>, as_rv: &Vec<HashSet<usize>>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> (Signal, usize) {
+fn select_bs_local(start: usize, as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, n: usize, path: &Vec<usize>, i: usize, lb: usize) -> (Signal, usize) {
     let mut u = start;
     let mut v = u + 1;
     let mut score = 0;
@@ -263,10 +263,10 @@ fn select_bs_local(start: usize, as_fw: &Vec<usize>, as_rv: &Vec<HashSet<usize>>
 }
 
 #[allow(dead_code)]
-fn rev_as(v: &Vec<usize>, n: usize) -> Vec<HashSet<usize>> {
-    let mut r = vec![HashSet::new(); n];
+fn rev_as(v: &Vec<usize>, n: usize) -> Vec<Vec<usize>> {
+    let mut r = vec![Vec::new(); n];
     for (i, x) in v.iter().copied().enumerate() {
-        r[x].insert(i);
+        r[x].push(i);
     }
     return r;
 }
