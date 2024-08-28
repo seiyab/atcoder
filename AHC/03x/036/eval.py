@@ -18,12 +18,13 @@ def main():
         elapsed = int((end - start) * 1000)
         out = o.stdout
         local_score = int(out)
-        if i < 7:
-            print(f"{p.name}: {local_score}, {elapsed}")
+        if i < 15:
+            _n, _m, _t, la, lb = d.split("\n")[0].split(" ")
+            print(f"{p.name} ({int(la):4d}, {int(lb):2d}): {local_score}, {elapsed}")
         score += local_score
         worst_time = max(worst_time, elapsed)
     print("--------------------")
-    print(f"Average: {score / len(fs)}")
+    print(f"Average: {int(score / len(fs))}")
     print(f"Worst time: {worst_time} ms")
 
 main()
