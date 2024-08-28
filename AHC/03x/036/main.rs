@@ -306,17 +306,58 @@ fn rev_unique(v: &Vec<usize>, n: usize) -> Vec<usize> {
     return r;
 }
 
+#[derive(PartialEq, Eq, Hash)]
+struct NormalizedQuad(usize, usize, usize, usize);
+
+impl From<(usize, usize, usize, usize)> for NormalizedQuad {
+    fn from((a, b, c, d): (usize, usize, usize, usize)) -> Self {
+        let mut v = vec![a, b, c, d];
+        v.sort();
+        return Self(v[0], v[1], v[2], v[3]);
+    }
+}
+
 #[allow(dead_code)]
 fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
     let mut as_fw = Vec::new();
     let mut as_yet: HashSet<_> = path.iter().copied().collect();
     let buf_len = lb;
+    let mut quads = HashSet::new();
+    let mut skip_mode = false;
+    let mut skip_until = 0;
     for i in 0..path.len() {
+        if as_fw.len() >= 4 {
+            let l = as_fw.len();
+            let q = NormalizedQuad::from((as_fw[l-4], as_fw[l-3], as_fw[l-2], as_fw[l-1]));
+            quads.insert(q);
+        }
+        if i < skip_until {
+            continue;
+        }
+        
         let p = path[i];
         if as_yet.contains(&p) {
             as_fw.push(p);
             as_yet.remove(&p);
+            skip_mode = false;
         } else {
+            if skip_mode {
+                let q = NormalizedQuad::from((path[i-3], path[i-2], path[i-1], p));
+                if quads.contains(&q) {
+                    continue;
+                } else {
+                    skip_mode = false;
+                }
+            }
+            if !skip_mode && i + 3 < path.len() {
+                let q = NormalizedQuad::from((p, path[i+1], path[i+2], path[i+3]));
+                if quads.contains(&q) {
+                    skip_until = i + 3;
+                    skip_mode = true;
+                    continue;
+                }
+            }
+            
             if as_yet.len() < la - as_fw.len() {
                 let l = as_fw.len();
                 let st = if l < buf_len { 0 } else { l - buf_len };
