@@ -303,7 +303,7 @@ fn rev_unique(v: &Vec<usize>, n: usize) -> Vec<usize> {
 fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
     let mut as_fw = Vec::new();
     let mut as_yet: HashSet<_> = path.iter().copied().collect();
-    let buf_len = std::cmp::max(4, lb / 2);
+    let buf_len = lb;
     for i in 0..path.len() {
         let p = path[i];
         if as_yet.contains(&p) {
