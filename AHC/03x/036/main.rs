@@ -44,7 +44,7 @@ fn solve(
     lb: usize,
 ) -> (Vec<usize>, Vec<Step>) {
     let path = entire_path(n, edges, ts);
-    let as_fw = greedy_as(&path, la);
+    let as_fw = greedy_as(&path, la, lb);
     let as_rv = rev_as(&as_fw, n);
     let mut bs: HashSet<usize> = HashSet::new();
     let mut bs_arr = vec![usize::MAX; lb];
@@ -300,16 +300,22 @@ fn rev_unique(v: &Vec<usize>, n: usize) -> Vec<usize> {
 }
 
 #[allow(dead_code)]
-fn greedy_as(path: &Vec<usize>, la: usize) -> Vec<usize> {
+fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
     let mut as_fw = Vec::new();
     let mut as_yet: HashSet<_> = path.iter().copied().collect();
-    for p in path.iter().copied() {
+    let buf_len = std::cmp::max(4, lb / 2);
+    for i in 0..path.len() {
+        let p = path[i];
         if as_yet.contains(&p) {
             as_fw.push(p);
             as_yet.remove(&p);
         } else {
             if as_yet.len() < la - as_fw.len() {
-                as_fw.push(p);
+                let l = as_fw.len();
+                let st = if l < buf_len { 0 } else { l - buf_len };
+                if !(st..l).any(|j| as_fw[j] == p) {
+                    as_fw.push(p);
+                }
             }
         }
     }
