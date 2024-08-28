@@ -49,20 +49,22 @@ fn solve(
     let mut bs: HashSet<usize> = HashSet::new();
     let mut bs_arr = vec![usize::MAX; lb];
     let mut steps: Vec<Step> = Vec::new();
-    let mut next_left = true;
+    let mut bs_i_next = 0;
     for i in 0..path.len() {
         let p = path[i];
         if !bs.contains(&p) {
             let mut sig = select_bs(&as_fw, &as_rv, &path, i, lb).unwrap();
-            if next_left {
-                sig = sig.right(lb);
+            if bs_i_next + sig.len() > lb {
+                bs_i_next = 0;
             }
+            sig = sig.at(bs_i_next);
+
             steps.push(sig.step());
             for i in 0..sig.len() {
                 bs_arr[i + sig.2] = as_fw[i + sig.1];
             }
             bs = bs_arr.iter().copied().collect();
-            next_left = !next_left;
+            bs_i_next += sig.len();
         }
         steps.push(mv(p));
     }
@@ -117,8 +119,13 @@ impl Signal {
         self.0
     }
     
+    #[allow(dead_code)]
     fn right(&self, lb: usize) -> Signal {
         Signal(self.0, self.1, lb - self.0)
+    }
+    
+    fn at(&self, i: usize) -> Signal {
+        Signal(self.0, self.1, i)
     }
 }
 
