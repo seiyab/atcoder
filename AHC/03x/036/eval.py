@@ -8,7 +8,7 @@ def main():
     score = 0
     worst_time = 0
     fs = [p for p in  Path("./in").iterdir() if not p.is_dir()]
-    fs = sorted(fs, key=lambda x: x.name)[:30]
+    fs = sorted(fs, key=lambda x: x.name)[:50]
     for i, p in enumerate(fs):
         with open(p, 'r') as f:
             d = f.read()
