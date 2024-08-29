@@ -137,7 +137,7 @@ fn suggest_paths(
     ts: &Vec<usize>,
 ) -> Vec<Vec<usize>> {
     let mut new_paths = vec![Vec::new(); paths.len()];
-    let breaks = sample_indices(rng, paths.len(), 200);
+    let breaks = sample_indices(rng, paths.len(), 500);
     let mut used_edges = HashSet::new();
     for (i, p) in paths.iter().enumerate() {
         if breaks.contains(&i) {
