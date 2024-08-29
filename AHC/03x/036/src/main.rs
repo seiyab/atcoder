@@ -405,10 +405,10 @@ impl From<(usize, usize, usize, usize)> for NormalizedQuad {
     }
 }
 
+#[allow(dead_code)]
 fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
     let mut as_fw = Vec::new();
     let mut as_yet: HashSet<_> = path.iter().copied().collect();
-    let num_nodes = as_yet.len();
     let buf_len = lb;
     let mut quads = HashSet::new();
     let mut skip_mode = false;
@@ -419,16 +419,16 @@ fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
             let q = NormalizedQuad::from((as_fw[l-4], as_fw[l-3], as_fw[l-2], as_fw[l-1]));
             quads.insert(q);
         }
+        if i < skip_until {
+            continue;
+        }
+        
         let p = path[i];
         if as_yet.contains(&p) {
             as_fw.push(p);
             as_yet.remove(&p);
             skip_mode = false;
         } else {
-            if i < skip_until {
-                continue;
-            }
-        
             if skip_mode {
                 let q = NormalizedQuad::from((path[i-3], path[i-2], path[i-1], p));
                 if quads.contains(&q) {
@@ -447,16 +447,6 @@ fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
             }
             
             if as_yet.len() < la - as_fw.len() {
-                if i+1 < path.len() {
-                    let node_progress = progress(num_nodes - as_yet.len(), num_nodes);
-                    let capacity_progress = progress(as_fw.len(), la);
-                    if capacity_progress > node_progress {
-                        if !as_yet.contains(&path[i+1]) {
-                            continue;
-                        }
-                    }
-                }
-
                 let l = as_fw.len();
                 let st = if l < buf_len { 0 } else { l - buf_len };
                 if !(st..l).any(|j| as_fw[j] == p) {
@@ -468,8 +458,17 @@ fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
     return as_fw;
 }
 
-fn progress(current: usize, total: usize) -> usize {
-    current * 100 / total
+#[allow(dead_code)]
+fn naive_greedy_as(path: &Vec<usize>) -> Vec<usize> {
+    let mut as_fw = Vec::new();
+    let mut as_yet = HashSet::new();
+    for p in path.iter().copied() {
+        if !as_yet.contains(&p) {
+            as_fw.push(p);
+            as_yet.insert(p);
+        }
+    }
+    return as_fw;
 }
 
 #[allow(dead_code)]
