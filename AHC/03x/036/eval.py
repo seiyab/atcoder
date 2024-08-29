@@ -4,7 +4,7 @@ from pathlib import Path
 def main():
     my_env = os.environ.copy()
     my_env["SCORE"] = "1"
-    subprocess.run(["cargo", "build"], check=True)
+    subprocess.run(["cargo", "build", "--release", "--offline"], check=True)
     score = 0
     worst_time = 0
     fs = [p for p in  Path("./in").iterdir() if not p.is_dir()]
@@ -13,7 +13,7 @@ def main():
         with open(p, 'r') as f:
             d = f.read()
         start = time.time()
-        o = subprocess.run("./target/debug/ahc036", input=d, check=True, capture_output=True, text=True, env=my_env)
+        o = subprocess.run("./target/release/ahc036", input=d, check=True, capture_output=True, text=True, env=my_env)
         end = time.time()
         elapsed = int((end - start) * 1000)
         out = o.stdout
