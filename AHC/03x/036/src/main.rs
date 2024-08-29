@@ -80,7 +80,7 @@ fn partitioned_path(
     let mut pos = 0;
     let mut visited_edges = HashSet::new();
     for t in ts.iter().copied() {
-        let p = dijkstra(&edges, &visited_edges, pos, t);
+        let p = dijkstra(&edges, &visited_edges, &HashSet::new(), usize::MAX, usize::MAX, pos, t);
         for i in 0..p.len()-1 {
             visited_edges.insert(NormalizedEdge::from((p[i], p[i+1])));
         }
@@ -137,8 +137,9 @@ fn suggest_paths(
     ts: &Vec<usize>,
 ) -> Vec<Vec<usize>> {
     let mut new_paths = vec![Vec::new(); paths.len()];
-    let breaks = sample_indices(rng, paths.len(), 200);
+    let breaks = sample_indices(rng, paths.len(), 100);
     let mut used_edges = HashSet::new();
+    let mut used_quads = HashSet::new();
     for (i, p) in paths.iter().enumerate() {
         if breaks.contains(&i) {
             continue;
@@ -150,6 +151,11 @@ fn suggest_paths(
         if i + 1 < paths.len() && !breaks.contains(&(i+1)) {
             used_edges.insert(NormalizedEdge::from((p[p.len()-1], paths[i+1][0])));
         }
+        if p.len() >= 4 {
+            for j in 0..p.len()-4 {
+                used_quads.insert(NormalizedQuad::from((p[j], p[j+1], p[j+2], p[j+3])));
+            }
+        }
     }
     
 
@@ -157,7 +163,15 @@ fn suggest_paths(
     for i in breaks.iter().copied() {
         let start = if i == 0 { 0 } else { ts[i-1] };
         let end = ts[i];
-        let p = dijkstra(edges, &used_edges, start, end);
+        let (mut prev, mut prevprev) = (usize::MAX, usize::MAX);
+        if i > 0 && (done.contains(&(i-1)) || !breaks.contains(&(i-1))) {
+            let ix = i - 1;
+            prev = paths[ix][paths[ix].len()-1];
+            if paths[ix].len() >= 2 {
+                prevprev = paths[ix][paths[ix].len()-2];
+            }
+        }
+        let p = dijkstra(edges, &used_edges, &used_quads, prev, prevprev, start, end);
         for j in 0..p.len()-1 {
             used_edges.insert(NormalizedEdge::from((p[j], p[j+1])));
         }
@@ -165,6 +179,12 @@ fn suggest_paths(
         if ix < paths.len() && (!breaks.contains(&(ix)) || done.contains(&ix)) {
             used_edges.insert(NormalizedEdge::from((p[p.len()-1], new_paths[ix][0])));
         }
+        if p.len() >= 4 {
+            for j in 0..p.len()-4 {
+                used_quads.insert(NormalizedQuad::from((p[j], p[j+1], p[j+2], p[j+3])));
+            }
+        }
+
         new_paths[i] = p;
         done.insert(i);
     }
@@ -235,6 +255,9 @@ fn get_edges(n: usize, m: usize) -> Vec<HashSet<usize>> {
 fn dijkstra(
     edges: &Vec<HashSet<usize>>,
     visited_edges: &HashSet<NormalizedEdge>,
+    visited_quads: &HashSet<NormalizedQuad>,
+    prev: usize,
+    prevprev: usize,
     start: usize,
     goal: usize,
 ) -> Vec<usize> {
@@ -254,7 +277,15 @@ fn dijkstra(
         }
         for &next in edges[position].iter() {
             let e = NormalizedEdge::from((position, next));
-            let cost_delta = if visited_edges.contains(&e) { 99 }
+            let (v, w) = (position, next);
+            let u = if from[v] == usize::MAX { prev } else { from[v] };
+            let t = if u == usize::MAX { usize::MAX }
+                else if from[u] == usize::MAX { prevprev }
+                else { from[u] };
+            let q = NormalizedQuad::from((t, u, v, w));
+            let cost_delta = if visited_quads.contains(&q) { 1 }
+                else if next == prev { 99 }
+                else if visited_edges.contains(&e) { 99 }
                 else { 100 };
             let next_cost = cost + cost_delta;
             if next_cost < dist[next] {
