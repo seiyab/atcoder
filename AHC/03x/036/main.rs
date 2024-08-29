@@ -167,7 +167,8 @@ fn dijkstra(
         }
         for &next in edges[position].iter() {
             let e = NormalizedEdge::from((position, next));
-            let cost_delta = if visited_edges.contains(&e) { 99 } else { 100 };
+            let cost_delta = if visited_edges.contains(&e) { 99 }
+                else { 100 };
             let next_cost = cost + cost_delta;
             if next_cost < dist[next] {
                 heap.push(PathState { cost: next_cost, position: next });
