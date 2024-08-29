@@ -163,7 +163,7 @@ fn suggest_paths(
         }
         let ix = i + 1;
         if ix < paths.len() && (!breaks.contains(&(ix)) || done.contains(&ix)) {
-            used_edges.insert(NormalizedEdge::from((p[p.len()-1], paths[ix][0])));
+            used_edges.insert(NormalizedEdge::from((p[p.len()-1], new_paths[ix][0])));
         }
         new_paths[i] = p;
         done.insert(i);
