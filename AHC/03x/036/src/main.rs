@@ -5,6 +5,9 @@ use std::str::FromStr;
 use std::collections::HashSet;
 use std::env;
 
+// use rand::prelude::{ThreadRng, thread_rng};
+use rand::prelude::*;
+
 fn main() {
     let (n, m, _t, la, lb): (usize, usize, usize, usize, usize) = get_five();
     let edges = get_edges(n, m);
@@ -43,7 +46,63 @@ fn solve(
     la: usize,
     lb: usize,
 ) -> (Vec<usize>, Vec<Step>) {
-    let path = entire_path(n, edges, ts);
+    let paths = partitioned_path(edges, ts);
+    let mut path = Vec::new();
+    for p in paths.iter() {
+        path.extend(p);
+    }
+    let (mut cs, mut steps) = solve_for_fixed_path(&path, n, la, lb);
+    
+    let mut loss = eval(&steps);
+    let mut rng = thread_rng();
+    for _ in 0..20 {
+        let new_paths = suggest_paths(&mut rng, &paths, edges, ts);
+        let mut new_path = Vec::new();
+        for p in new_paths.iter() {
+            new_path.extend(p);
+        }
+        let (new_cs, new_steps) = solve_for_fixed_path(&new_path, n, la, lb);
+        let l = eval(&new_steps);
+        if l < loss {
+            cs = new_cs;
+            steps = new_steps;
+            loss = l;
+        }
+    }
+    return (cs, steps)
+}
+
+fn partitioned_path(
+    edges: &Vec<HashSet<usize>>,
+    ts: &Vec<usize>,
+) -> Vec<Vec<usize>> {
+    let mut paths = Vec::new();
+    let mut pos = 0;
+    let mut visited_edges = HashSet::new();
+    for t in ts.iter().copied() {
+        let p = dijkstra(&edges, &visited_edges, pos, t);
+        for i in 0..p.len()-1 {
+            visited_edges.insert(NormalizedEdge::from((p[i], p[i+1])));
+        }
+        paths.push(p);
+        pos = t;
+    }
+    return paths;
+}
+
+fn eval(steps: &Vec<Step>) -> usize {
+    return steps.iter().filter(|a| match a {
+        &&Step::Signal(_, _, _) => true,
+        _ => false,
+    }).count();
+}
+
+fn solve_for_fixed_path(
+    path: &Vec<usize>,
+    n: usize,
+    la: usize,
+    lb: usize,
+) -> (Vec<usize>, Vec<Step>) {
     let as_fw = greedy_as(&path, la, lb);
     let as_rv = rev_as(&as_fw, n);
     let mut bs: HashSet<usize> = HashSet::new();
@@ -71,23 +130,42 @@ fn solve(
     return (fill_dummy(&as_fw, la), steps);
 }
 
-fn entire_path(
-    _n: usize,
+fn suggest_paths(
+    rng: &mut ThreadRng,
+    paths: &Vec<Vec<usize>>,
     edges: &Vec<HashSet<usize>>,
     ts: &Vec<usize>,
-) -> Vec<usize> {
-    let mut path = Vec::new();
-    let mut pos = 0;
-    let mut visited_edges = HashSet::new();
-    for t in ts.iter().copied() {
-        let p = dijkstra(&edges, &visited_edges, pos, t);
-        for i in 0..p.len()-1 {
-            visited_edges.insert(NormalizedEdge::from((p[i], p[i+1])));
+) -> Vec<Vec<usize>> {
+    let mut new_paths = vec![Vec::new(); paths.len()];
+    let breaks = sample_indices(rng, paths.len(), 50);
+    let mut used_edges = HashSet::new();
+    for (i, p) in paths.iter().enumerate() {
+        if breaks.contains(&i) {
+            continue;
         }
-        path.extend(p);
-        pos = t;
+        new_paths[i] = p.clone();
+        for j in 0..p.len()-1 {
+            used_edges.insert(NormalizedEdge::from((p[j], p[j+1])));
+        }
     }
-    return path;
+    
+
+    for i in breaks.iter().copied() {
+        let start = if i == 0 { 0 } else { ts[i-1] };
+        let end = ts[i];
+        let p = dijkstra(edges, &used_edges, start, end);
+        for j in 0..p.len()-1 {
+            used_edges.insert(NormalizedEdge::from((p[j], p[j+1])));
+        }
+        new_paths[i] = p;
+    }
+    return new_paths;
+}
+
+fn sample_indices(rng: &mut ThreadRng, n: usize, k: usize) -> HashSet<usize> {
+    let mut v: Vec<_> = (0..n).collect();
+    v.shuffle(rng);
+    return v.iter().take(k).copied().collect();
 }
 
 enum Step {
