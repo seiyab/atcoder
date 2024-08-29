@@ -63,7 +63,7 @@ fn solve(
         }
         let (new_cs, new_steps) = solve_for_fixed_path(&new_path, n, la, lb);
         let l = eval(&new_steps);
-        if l < loss {
+        if l <= loss {
             cs = new_cs;
             steps = new_steps;
             loss = l;
@@ -137,7 +137,7 @@ fn suggest_paths(
     ts: &Vec<usize>,
 ) -> Vec<Vec<usize>> {
     let mut new_paths = vec![Vec::new(); paths.len()];
-    let breaks = sample_indices(rng, paths.len(), 100);
+    let breaks = sample_indices(rng, paths.len(), 200);
     let mut used_edges = HashSet::new();
     for (i, p) in paths.iter().enumerate() {
         if breaks.contains(&i) {
