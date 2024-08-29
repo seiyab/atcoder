@@ -147,9 +147,13 @@ fn suggest_paths(
         for j in 0..p.len()-1 {
             used_edges.insert(NormalizedEdge::from((p[j], p[j+1])));
         }
+        if i + 1 < paths.len() && !breaks.contains(&(i+1)) {
+            used_edges.insert(NormalizedEdge::from((p[p.len()-1], paths[i+1][0])));
+        }
     }
     
 
+    let mut done = HashSet::new();
     for i in breaks.iter().copied() {
         let start = if i == 0 { 0 } else { ts[i-1] };
         let end = ts[i];
@@ -157,7 +161,12 @@ fn suggest_paths(
         for j in 0..p.len()-1 {
             used_edges.insert(NormalizedEdge::from((p[j], p[j+1])));
         }
+        let ix = i + 1;
+        if ix < paths.len() && (!breaks.contains(&(ix)) || done.contains(&ix)) {
+            used_edges.insert(NormalizedEdge::from((p[p.len()-1], paths[ix][0])));
+        }
         new_paths[i] = p;
+        done.insert(i);
     }
     return new_paths;
 }
