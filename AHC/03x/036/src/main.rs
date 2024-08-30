@@ -299,7 +299,7 @@ fn dijkstra(
         for &next in edges[position].iter() {
             let e = NormalizedEdge::from((position, next));
             let cost_delta = if hub_nodes.contains(&next) { 10 }
-                else if visited_edges.contains(&e) { 99 }
+                else if visited_edges.contains(&e) { 50 }
                 else { 100 };
             let next_cost = cost + cost_delta;
             if next_cost < dist[next] {
