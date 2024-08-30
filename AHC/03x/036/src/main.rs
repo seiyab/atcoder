@@ -5,7 +5,6 @@ use std::str::FromStr;
 use std::collections::HashSet;
 use std::env;
 
-// use rand::prelude::{ThreadRng, thread_rng};
 use rand::prelude::*;
 
 fn main() {
@@ -46,7 +45,8 @@ fn solve(
     la: usize,
     lb: usize,
 ) -> (Vec<usize>, Vec<Step>) {
-    let paths = partitioned_path(edges, ts);
+    let hub = pickup_hub_nodes(edges, 10);
+    let paths = partitioned_path(edges, &hub, ts);
     let mut path = Vec::new();
     for p in paths.iter() {
         path.extend(p);
@@ -56,7 +56,7 @@ fn solve(
     let mut loss = eval(&steps);
     let mut rng = thread_rng();
     for _ in 0..20 {
-        let new_paths = suggest_paths(&mut rng, &paths, edges, ts);
+        let new_paths = suggest_paths(&mut rng, &paths, edges, &hub, ts);
         let mut new_path = Vec::new();
         for p in new_paths.iter() {
             new_path.extend(p);
@@ -74,13 +74,14 @@ fn solve(
 
 fn partitioned_path(
     edges: &Vec<HashSet<usize>>,
+    hub_nodes: &HashSet<usize>,
     ts: &Vec<usize>,
 ) -> Vec<Vec<usize>> {
     let mut paths = Vec::new();
     let mut pos = 0;
     let mut visited_edges = HashSet::new();
     for t in ts.iter().copied() {
-        let p = dijkstra(&edges, &visited_edges, pos, t);
+        let p = dijkstra(&edges, &visited_edges, hub_nodes, pos, t);
         for i in 0..p.len()-1 {
             visited_edges.insert(NormalizedEdge::from((p[i], p[i+1])));
         }
@@ -134,6 +135,7 @@ fn suggest_paths(
     rng: &mut ThreadRng,
     paths: &Vec<Vec<usize>>,
     edges: &Vec<HashSet<usize>>,
+    hub_nodes: &HashSet<usize>,
     ts: &Vec<usize>,
 ) -> Vec<Vec<usize>> {
     let mut new_paths = vec![Vec::new(); paths.len()];
@@ -157,7 +159,7 @@ fn suggest_paths(
     for i in breaks.iter().copied() {
         let start = if i == 0 { 0 } else { ts[i-1] };
         let end = ts[i];
-        let p = dijkstra(edges, &used_edges, start, end);
+        let p = dijkstra(edges, &used_edges, hub_nodes, start, end);
         for j in 0..p.len()-1 {
             used_edges.insert(NormalizedEdge::from((p[j], p[j+1])));
         }
@@ -232,9 +234,37 @@ fn get_edges(n: usize, m: usize) -> Vec<HashSet<usize>> {
     return e;
 }
 
+fn pickup_hub_nodes(edges: &Vec<HashSet<usize>>, size: usize) -> HashSet<usize> {
+    let r = node_ranking(edges);
+    return r.iter().take(size).copied().collect();
+}
+
+fn node_ranking(edges: &Vec<HashSet<usize>>) -> Vec<usize> {
+    let v = eigenvector(edges);
+    let mut r: Vec<_> = (0..edges.len()).collect();
+    r.sort_by(|&i, &j| v[j].partial_cmp(&v[i]).unwrap_or(Ordering::Equal));
+    return r;
+}
+
+fn eigenvector(edges: &Vec<HashSet<usize>>) -> Vec<f64> {
+    let mut v = vec![1.0; edges.len()];
+    let mut w = vec![0.0; edges.len()];
+    for _ in 0..10 {
+        for i in 0..edges.len() {
+            w[i] = edges[i].iter().map(|&j| v[j]).sum();
+        }
+        let s = w.iter().sum::<f64>();
+        for i in 0..edges.len() {
+            v[i] = w[i] / s;
+        }
+    }
+    return v;
+}
+
 fn dijkstra(
     edges: &Vec<HashSet<usize>>,
     visited_edges: &HashSet<NormalizedEdge>,
+    hub_nodes: &HashSet<usize>,
     start: usize,
     goal: usize,
 ) -> Vec<usize> {
@@ -254,7 +284,8 @@ fn dijkstra(
         }
         for &next in edges[position].iter() {
             let e = NormalizedEdge::from((position, next));
-            let cost_delta = if visited_edges.contains(&e) { 99 }
+            let cost_delta = if hub_nodes.contains(&next) { 10 }
+                else if visited_edges.contains(&e) { 99 }
                 else { 100 };
             let next_cost = cost + cost_delta;
             if next_cost < dist[next] {
