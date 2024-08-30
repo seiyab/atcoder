@@ -16,15 +16,20 @@ def main():
         As, *steps = map(lambda x: x.split(" "), out.split("\n"))
         As = list(map(int, As))
         steps = list(map(lambda x: [x[0], *map(int, x[1:])], steps))
+        path = [s[1] for s in steps if s[0] == "m"]
+        sigs = [s[1:] for s in steps if s[0] == "s"]
 
         print(f"-------------------- {p.name}")
         print(f"la: {la}, lb: {lb}")
         print(f"----- As")
-        print("most common node: ", Counter(As).most_common(5))
-        print("most common edge: ", Counter(map(lambda x: tuple(sorted(x)), zip(As, As[1:]))).most_common(5))
+        print("most common node: ", Counter(As).most_common(10))
+        print("most common edge: ", Counter(map(lambda x: tuple(sorted(x)), zip(As, As[1:]))).most_common(10))
         print(f"----- steps")
         print(f"unique nodes: {len(set(s[1] for s in steps if s[0] == 'm'))}")
-        print("m: ", sum(1 for s in steps if s[0] == "m"))
+        print(f"path length: {len(path)}")
+        print(f"signals: {len(sigs)}")
+        print(f"most common node: ", Counter(path).most_common(10))
+        print(f"least common node: ", Counter(path).most_common()[-10:])
         print()
         
 
