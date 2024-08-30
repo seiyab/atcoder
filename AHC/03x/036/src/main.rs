@@ -147,12 +147,6 @@ fn suggest_paths(
             continue;
         }
         new_paths[i] = p.clone();
-        // for j in 0..p.len()-1 {
-        //     used_edges.insert(NormalizedEdge::from((p[j], p[j+1])));
-        // }
-        // if i + 1 < paths.len() && !breaks.contains(&(i+1)) {
-        //     used_edges.insert(NormalizedEdge::from((p[p.len()-1], paths[i+1][0])));
-        // }
     }
     let mut frequent_edges = pickup_frequent_edges(&new_paths, 300);
     
@@ -243,8 +237,6 @@ fn pickup_frequent_edges(paths: &Vec<Vec<usize>>, _size: usize) -> HashSet<Norma
             freq.entry(e).and_modify(|c| *c += 1).or_insert(1);
         }
     }
-    // let mut freq_vec: Vec<_> = freq.keys().cloned().collect();
-    // freq_vec.sort_by(|a, b| freq.get(b).unwrap_or(&0).cmp(freq.get(a).unwrap_or(&0)));
     return freq.keys().filter(|k| freq.get(k).unwrap_or(&0) > &3).cloned().collect();
 }
 
