@@ -350,6 +350,21 @@ impl From<(usize, usize)> for NormalizedEdge {
 }
 
 #[allow(dead_code)]
+fn select_bs_2(as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, path: &Vec<usize>, i: usize, lb: usize) -> Option<(Signal, usize)> {
+    let mut sts = as_rv[path[i]].iter().copied();
+    let hd = sts.next()?;
+    let (mut sig, mut score) = select_bs_local(hd, as_fw, as_rv, path, i, lb);
+    for st in sts {
+        let (sg, sc) = select_bs_local(st, as_fw, as_rv, path, i, lb);
+        if sc > score {
+            sig = sg;
+            score = sc;
+        }
+    }
+    return Some((sig, score));
+}
+
+#[allow(dead_code)]
 fn select_bs(as_fw: &Vec<usize>, as_rv: &Vec<Vec<usize>>, path: &Vec<usize>, i: usize, lb: usize) -> Option<Signal> {
     let mut sts = as_rv[path[i]].iter().copied();
     let hd = sts.next()?;
@@ -451,49 +466,32 @@ impl From<(usize, usize, usize, usize)> for NormalizedQuad {
 #[allow(dead_code)]
 fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
     let mut as_fw = Vec::new();
+    let mut as_rv = vec![Vec::new(); 600];
     let mut as_yet: HashSet<_> = path.iter().copied().collect();
     let buf_len = lb;
-    let mut quads = HashSet::new();
     let mut skip_until = 0;
     for i in 0..path.len() {
-        if as_fw.len() >= 4 {
-            let l = as_fw.len();
-            let q = NormalizedQuad::from((as_fw[l-4], as_fw[l-3], as_fw[l-2], as_fw[l-1]));
-            quads.insert(q);
-        }
-        if i < skip_until {
-            continue;
-        }
-        
         let p = path[i];
         if as_yet.contains(&p) {
+            as_rv[p].push(as_fw.len());
             as_fw.push(p);
             as_yet.remove(&p);
         } else {
-            if skip_until == i && i >= 3 {
-                let q = NormalizedQuad::from((path[i-3], path[i-2], path[i-1], p));
-                if quads.contains(&q) {
-                    skip_until = i + 1;
-                    continue;
-                } 
+            if i < skip_until {
+                continue;
             }
-            if !skip_until == i && i + 3 < path.len() {
-                let q = NormalizedQuad::from((p, path[i+1], path[i+2], path[i+3]));
-                if quads.contains(&q) {
-                    skip_until = i + 3;
+            if let Some((_, score)) = select_bs_2(&as_fw, &as_rv, path, i, lb) {
+                if score >= lb / 2 + 1 {
+                    skip_until = i + score;
                     continue;
                 }
             }
-            if i > 0 && as_fw.len() > 0 {
-                if path[i-1] != as_fw[as_fw.len()-1] {
-                    continue;
-                }
-            }
-            
+
             if as_yet.len() < la - as_fw.len() {
                 let l = as_fw.len();
                 let st = if l < buf_len { 0 } else { l - buf_len };
                 if !(st..l).any(|j| as_fw[j] == p) {
+                    as_rv[p].push(as_fw.len());
                     as_fw.push(p);
                 }
             }
