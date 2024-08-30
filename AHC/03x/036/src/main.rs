@@ -3,6 +3,7 @@ use std::collections::BinaryHeap;
 use std::io::stdin;
 use std::str::FromStr;
 use std::collections::HashSet;
+use std::collections::HashMap;
 use std::env;
 
 use rand::prelude::*;
@@ -139,34 +140,31 @@ fn suggest_paths(
     ts: &Vec<usize>,
 ) -> Vec<Vec<usize>> {
     let mut new_paths = vec![Vec::new(); paths.len()];
-    let breaks = sample_indices(rng, paths.len(), 500);
-    let mut used_edges = HashSet::new();
+    let breaks = sample_indices(rng, paths.len(), 400);
     for (i, p) in paths.iter().enumerate() {
         if breaks.contains(&i) {
+            new_paths[i] = Vec::new();
             continue;
         }
         new_paths[i] = p.clone();
-        for j in 0..p.len()-1 {
-            used_edges.insert(NormalizedEdge::from((p[j], p[j+1])));
-        }
-        if i + 1 < paths.len() && !breaks.contains(&(i+1)) {
-            used_edges.insert(NormalizedEdge::from((p[p.len()-1], paths[i+1][0])));
-        }
+        // for j in 0..p.len()-1 {
+        //     used_edges.insert(NormalizedEdge::from((p[j], p[j+1])));
+        // }
+        // if i + 1 < paths.len() && !breaks.contains(&(i+1)) {
+        //     used_edges.insert(NormalizedEdge::from((p[p.len()-1], paths[i+1][0])));
+        // }
     }
+    let mut frequent_edges = pickup_frequent_edges(&new_paths, 300);
     
 
     let mut done = HashSet::new();
     for i in breaks.iter().copied() {
+        if done.len() % 10 == 9 {
+            frequent_edges = pickup_frequent_edges(&new_paths, 600);
+        }
         let start = if i == 0 { 0 } else { ts[i-1] };
         let end = ts[i];
-        let p = dijkstra(edges, &used_edges, hub_nodes, start, end);
-        for j in 0..p.len()-1 {
-            used_edges.insert(NormalizedEdge::from((p[j], p[j+1])));
-        }
-        let ix = i + 1;
-        if ix < paths.len() && (!breaks.contains(&(ix)) || done.contains(&ix)) {
-            used_edges.insert(NormalizedEdge::from((p[p.len()-1], new_paths[ix][0])));
-        }
+        let p = dijkstra(edges, &frequent_edges, hub_nodes, start, end);
         new_paths[i] = p;
         done.insert(i);
     }
@@ -232,6 +230,22 @@ fn get_edges(n: usize, m: usize) -> Vec<HashSet<usize>> {
         e[v].insert(u);
     }
     return e;
+}
+
+fn pickup_frequent_edges(paths: &Vec<Vec<usize>>, _size: usize) -> HashSet<NormalizedEdge> {
+    let mut freq = HashMap::new();
+    for p in paths.iter() {
+        if p.len() < 2 {
+            continue;
+        }
+        for i in 0..p.len()-1 {
+            let e = NormalizedEdge::from((p[i], p[i+1]));
+            freq.entry(e).and_modify(|c| *c += 1).or_insert(1);
+        }
+    }
+    // let mut freq_vec: Vec<_> = freq.keys().cloned().collect();
+    // freq_vec.sort_by(|a, b| freq.get(b).unwrap_or(&0).cmp(freq.get(a).unwrap_or(&0)));
+    return freq.keys().filter(|k| freq.get(k).unwrap_or(&0) > &3).cloned().collect();
 }
 
 fn pickup_hub_nodes(edges: &Vec<HashSet<usize>>, size: usize) -> HashSet<usize> {
@@ -324,7 +338,7 @@ impl PartialOrd for PathState {
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 struct NormalizedEdge(usize, usize);
 
 impl From<(usize, usize)> for NormalizedEdge {
