@@ -454,7 +454,6 @@ fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
     let mut as_yet: HashSet<_> = path.iter().copied().collect();
     let buf_len = lb;
     let mut quads = HashSet::new();
-    let mut skip_mode = false;
     let mut skip_until = 0;
     for i in 0..path.len() {
         if as_fw.len() >= 4 {
@@ -470,21 +469,18 @@ fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
         if as_yet.contains(&p) {
             as_fw.push(p);
             as_yet.remove(&p);
-            skip_mode = false;
         } else {
-            if skip_mode {
+            if skip_until == i && i >= 3 {
                 let q = NormalizedQuad::from((path[i-3], path[i-2], path[i-1], p));
                 if quads.contains(&q) {
+                    skip_until = i + 1;
                     continue;
-                } else {
-                    skip_mode = false;
-                }
+                } 
             }
-            if !skip_mode && i + 3 < path.len() {
+            if !skip_until == i && i + 3 < path.len() {
                 let q = NormalizedQuad::from((p, path[i+1], path[i+2], path[i+3]));
                 if quads.contains(&q) {
                     skip_until = i + 3;
-                    skip_mode = true;
                     continue;
                 }
             }
