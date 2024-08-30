@@ -46,6 +46,8 @@ fn solve(
     la: usize,
     lb: usize,
 ) -> (Vec<usize>, Vec<Step>) {
+    let start = std::time::Instant::now();
+    let fast = env::var("FAST") == Ok("1".to_string());
     let hub = pickup_hub_nodes(edges, 10);
     let paths = partitioned_path(edges, &hub, ts);
     let mut path = Vec::new();
@@ -56,7 +58,11 @@ fn solve(
     
     let mut loss = eval(&steps);
     let mut rng = thread_rng();
-    for _ in 0..20 {
+    for _ in 0..40 {
+        if start.elapsed().as_millis() > if fast { 100 } else { 1500 } {
+            break;
+        }
+
         let new_paths = suggest_paths(&mut rng, &paths, edges, &hub, ts);
         let mut new_path = Vec::new();
         for p in new_paths.iter() {
