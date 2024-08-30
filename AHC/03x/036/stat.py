@@ -5,7 +5,7 @@ from collections import Counter
 def main():
     my_env = os.environ.copy()
     subprocess.run(["cargo", "build", "--release", "--offline"], check=True)
-    fs = [p for p in  Path("./in").iterdir() if not p.is_dir()]
+    fs = [p for p in Path("./in").iterdir() if not p.is_dir()]
     fs = sorted(fs, key=lambda x: x.name)[:5]
     for i, p in enumerate(fs):
         with open(p, 'r') as f:

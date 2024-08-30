@@ -3,12 +3,16 @@ from pathlib import Path
 
 def main():
     my_env = os.environ.copy()
+    check_panic = my_env.get("PANIC", "") == "1"
     my_env["SCORE"] = "1"
     subprocess.run(["cargo", "build", "--release", "--offline"], check=True)
     score = 0
     worst_time = 0
-    fs = [p for p in  Path("./in").iterdir() if not p.is_dir()]
-    fs = sorted(fs, key=lambda x: x.name)[:50]
+    dir = Path("./in") if not check_panic else Path("./in_1000")
+    fs = [p for p in  dir.iterdir() if not p.is_dir()]
+    fs = sorted(fs, key=lambda x: x.name)
+    if not check_panic:
+        fs = fs[:50]
     for i, p in enumerate(fs):
         with open(p, 'r') as f:
             d = f.read()
