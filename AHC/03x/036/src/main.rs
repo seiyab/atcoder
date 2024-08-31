@@ -237,7 +237,7 @@ fn get_edges(n: usize, m: usize) -> Vec<HashSet<usize>> {
 }
 
 fn pickup_frequent_edges(paths: &Vec<Vec<usize>>, la: usize) -> HashSet<NormalizedEdge> {
-    let size = la * 3 / 2;
+    let size = la * 2 / 3;
     let mut freq = HashMap::new();
     for p in paths.iter() {
         if p.len() < 2 {
