@@ -9,7 +9,7 @@ def main():
     subprocess.run(["cargo", "build", "--release", "--offline"], check=True)
     score = 0
     worst_time = 0
-    dir = Path("./in") if not check_panic else Path("./in_4000") if my_env["MORE"] == "1" else  Path("./in_1000")
+    dir = Path("./in") if not check_panic else Path("./in_4000") if "MORE" in my_env and my_env["MORE"] == "1" else  Path("./in_1000")
     fs = [p for p in  dir.iterdir() if not p.is_dir()]
     fs = sorted(fs, key=lambda x: x.name)
     if not check_panic:
