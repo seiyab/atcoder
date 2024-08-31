@@ -58,8 +58,11 @@ fn solve(
     
     let mut loss = eval(&steps);
     let mut rng = thread_rng();
-    for _ in 0..40 {
-        if start.elapsed().as_millis() > if fast { 100 } else { 1500 } {
+    for i in 0..40 {
+        if fast && i > 4 {
+            break;
+        }
+        if start.elapsed().as_millis() > 1500 {
             break;
         }
 
@@ -155,7 +158,6 @@ fn suggest_paths(
         new_paths[i] = p.clone();
     }
     let mut frequent_edges = pickup_frequent_edges(&new_paths, 300);
-    
 
     let mut done = HashSet::new();
     for i in breaks.iter().copied() {
