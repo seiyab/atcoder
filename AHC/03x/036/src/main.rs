@@ -492,19 +492,17 @@ impl From<(usize, usize, usize, usize)> for NormalizedQuad {
 
 #[allow(dead_code)]
 fn greedy_as(path: &Vec<usize>, edges: &Vec<HashSet<usize>>, la: usize, lb: usize) -> Vec<usize> {
-    let mut as_fw = Vec::new();
+    let mut as_fw: Vec<usize> = Vec::new();
     let mut as_rv = vec![Vec::new(); 600];
     let mut as_yet: HashSet<_> = path.iter().copied().collect();
     let buf_len = lb;
     let mut skip_until = 0;
     for i in 0..path.len() {
         let p = path[i];
-        if as_yet.contains(&p) {
-            as_rv[p].push(as_fw.len());
-            as_fw.push(p);
-            as_yet.remove(&p);
+        if as_fw.len() > 1 {
+            let prev = as_fw[as_fw.len() - 1];
             if as_fw.len() > la / 2 && lb > 10 {
-                for &j in edges[p].iter() {
+                for &j in edges[prev].iter() {
                     if as_yet.contains(&j) {
                         as_rv[j].push(as_fw.len());
                         as_fw.push(j);
@@ -512,6 +510,11 @@ fn greedy_as(path: &Vec<usize>, edges: &Vec<HashSet<usize>>, la: usize, lb: usiz
                     }
                 }
             }
+        }
+        if as_yet.contains(&p) {
+            as_rv[p].push(as_fw.len());
+            as_fw.push(p);
+            as_yet.remove(&p);
         } else {
             if i < skip_until {
                 continue;
