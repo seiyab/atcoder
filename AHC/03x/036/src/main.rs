@@ -519,18 +519,19 @@ fn greedy_as(path: &Vec<usize>, edges: &Vec<HashSet<usize>>, la: usize, lb: usiz
             if i < skip_until {
                 continue;
             }
-            if let Some((_, score)) = select_bs_2(&as_fw, &as_rv, path, i, lb) {
-                if score >= lb / 2 + 1 {
-                    skip_until = i + score;
-                    continue;
+            if as_yet.len() > 0 && i + 200 < path.len() {
+                if let Some((_, score)) = select_bs_2(&as_fw, &as_rv, path, i, lb) {
+                    if score >= lb / 2 + 1 {
+                        skip_until = i + score;
+                        continue;
+                    }
+                }
+                if i > 1 {
+                    if !as_fw.iter().rev().take(lb/2+1).any(|&x| x == path[i-1]) {
+                        continue;
+                    }
                 }
             }
-            if i > 1 {
-                if !as_fw.iter().rev().take(lb/2+1).any(|&x| x == path[i-1]) {
-                    continue;
-                }
-            }
-
             if as_yet.len() < la - as_fw.len() {
                 let l = as_fw.len();
                 let st = if l < buf_len { 0 } else { l - buf_len };
