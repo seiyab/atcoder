@@ -9,7 +9,7 @@ def main():
     subprocess.run(["cargo", "build", "--release", "--offline"], check=True)
     score = 0
     worst_time = 0
-    dir = Path("./in") if not check_panic else Path("./in_1000")
+    dir = Path("./in") if not check_panic else Path("./in_2000") if my_env["MORE"] == "1" else  Path("./in_1000")
     fs = [p for p in  dir.iterdir() if not p.is_dir()]
     fs = sorted(fs, key=lambda x: x.name)
     if not check_panic:
@@ -18,10 +18,11 @@ def main():
         with open(p, 'r') as f:
             d = f.read()
         start = time.time()
-        o = subprocess.run("./target/release/ahc036", input=d, check=True, capture_output=True, text=True, env=my_env)
+        if check_panic:
+            print(f"{p.name}")
+        out = subprocess.check_output("./target/release/ahc036", input=d, stderr=subprocess.STDOUT, text=True, env=my_env)
         end = time.time()
         elapsed = int((end - start) * 1000)
-        out = o.stdout
         _n, _m, _t, la, lb = d.split("\n")[0].split(" ")
         if check_panic:
             outl = len(out.split("\n")[0].split(" "))

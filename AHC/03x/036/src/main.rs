@@ -495,6 +495,11 @@ fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
                     continue;
                 }
             }
+            if i > 1 {
+                if !as_fw.iter().rev().take(lb/3+1).any(|&x| x == path[i-1]) {
+                    continue;
+                }
+            }
 
             if as_yet.len() < la - as_fw.len() {
                 let l = as_fw.len();
