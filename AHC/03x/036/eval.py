@@ -30,7 +30,7 @@ def main():
                 raise Exception(f"Invalid input: {p.name}, ({outl}, {la})")
         else:
             local_score = int(out)
-            if i < 15 and not check_panic:
+            if i < 25 and not check_panic:
                 print(f"{p.name} ({int(la):4d}, {int(lb):2d}): {local_score}, {elapsed}")
             score += local_score
             worst_time = max(worst_time, elapsed)

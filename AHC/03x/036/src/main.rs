@@ -513,7 +513,7 @@ fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
                 }
             }
             if i > 1 {
-                if !as_fw.iter().rev().take(lb/3+1).any(|&x| x == path[i-1]) {
+                if !as_fw.iter().rev().take(lb/2+1).any(|&x| x == path[i-1]) {
                     continue;
                 }
             }
