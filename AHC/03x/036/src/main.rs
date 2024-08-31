@@ -54,7 +54,7 @@ fn solve(
     for p in paths.iter() {
         path.extend(p);
     }
-    let (mut cs, mut steps) = solve_for_fixed_path(&path, n, la, lb);
+    let (mut cs, mut steps) = solve_for_fixed_path(&path, edges, n, la, lb);
     
     let mut loss = eval(&steps);
     let mut rng = thread_rng();
@@ -71,7 +71,7 @@ fn solve(
         for p in new_paths.iter() {
             new_path.extend(p);
         }
-        let (new_cs, new_steps) = solve_for_fixed_path(&new_path, n, la, lb);
+        let (new_cs, new_steps) = solve_for_fixed_path(&new_path, edges, n, la, lb);
         let l = eval(&new_steps);
         if l <= loss {
             cs = new_cs;
@@ -112,11 +112,12 @@ fn eval(steps: &Vec<Step>) -> usize {
 
 fn solve_for_fixed_path(
     path: &Vec<usize>,
+    edges: &Vec<HashSet<usize>>,
     n: usize,
     la: usize,
     lb: usize,
 ) -> (Vec<usize>, Vec<Step>) {
-    let as_fw = greedy_as(&path, la, lb);
+    let as_fw = greedy_as(&path, edges, la, lb);
     let as_rv = rev_as(&as_fw, n);
     let mut bs: HashSet<usize> = HashSet::new();
     let mut bs_arr = vec![usize::MAX; lb];
@@ -490,7 +491,7 @@ impl From<(usize, usize, usize, usize)> for NormalizedQuad {
 }
 
 #[allow(dead_code)]
-fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
+fn greedy_as(path: &Vec<usize>, edges: &Vec<HashSet<usize>>, la: usize, lb: usize) -> Vec<usize> {
     let mut as_fw = Vec::new();
     let mut as_rv = vec![Vec::new(); 600];
     let mut as_yet: HashSet<_> = path.iter().copied().collect();
@@ -502,6 +503,15 @@ fn greedy_as(path: &Vec<usize>, la: usize, lb: usize) -> Vec<usize> {
             as_rv[p].push(as_fw.len());
             as_fw.push(p);
             as_yet.remove(&p);
+            if as_fw.len() > la / 2 && lb > 10 {
+                for &j in edges[p].iter() {
+                    if as_yet.contains(&j) {
+                        as_rv[j].push(as_fw.len());
+                        as_fw.push(j);
+                        as_yet.remove(&j);
+                    }
+                }
+            }
         } else {
             if i < skip_until {
                 continue;
