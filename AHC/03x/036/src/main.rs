@@ -49,7 +49,7 @@ fn solve(
     let start = std::time::Instant::now();
     let fast = env::var("FAST") == Ok("1".to_string());
     let hub = pickup_hub_nodes(edges, 10);
-    let paths = partitioned_path(edges, &hub, ts);
+    let paths = partitioned_path(edges, &hub, ts, la);
     let mut path = Vec::new();
     for p in paths.iter() {
         path.extend(p);
@@ -66,7 +66,7 @@ fn solve(
             break;
         }
 
-        let new_paths = suggest_paths(&mut rng, &paths, edges, &hub, ts);
+        let new_paths = suggest_paths(&mut rng, &paths, edges, &hub, ts, la);
         let mut new_path = Vec::new();
         for p in new_paths.iter() {
             new_path.extend(p);
@@ -86,14 +86,15 @@ fn partitioned_path(
     edges: &Vec<HashSet<usize>>,
     hub_nodes: &HashSet<usize>,
     ts: &Vec<usize>,
+    la: usize,
 ) -> Vec<Vec<usize>> {
     let mut paths = Vec::new();
     let mut pos = 0;
-    let mut visited_edges = HashSet::new();
-    for t in ts.iter().copied() {
-        let p = dijkstra(&edges, &visited_edges, hub_nodes, pos, t);
-        for i in 0..p.len()-1 {
-            visited_edges.insert(NormalizedEdge::from((p[i], p[i+1])));
+    let mut frequent_edges = HashSet::new();
+    for (i, t) in ts.iter().copied().enumerate() {
+        let p = dijkstra(&edges, &frequent_edges, hub_nodes, pos, t);
+        if i % 100 == 50 {
+            frequent_edges = pickup_frequent_edges(&paths, la);
         }
         paths.push(p);
         pos = t;
@@ -147,6 +148,7 @@ fn suggest_paths(
     edges: &Vec<HashSet<usize>>,
     hub_nodes: &HashSet<usize>,
     ts: &Vec<usize>,
+    la: usize,
 ) -> Vec<Vec<usize>> {
     let mut new_paths = vec![Vec::new(); paths.len()];
     let breaks = sample_indices(rng, paths.len(), 400);
@@ -157,12 +159,12 @@ fn suggest_paths(
         }
         new_paths[i] = p.clone();
     }
-    let mut frequent_edges = pickup_frequent_edges(&new_paths, 300);
-
+    let mut frequent_edges = pickup_frequent_edges(&new_paths, la);
+    
     let mut done = HashSet::new();
     for i in breaks.iter().copied() {
         if done.len() % 10 == 9 {
-            frequent_edges = pickup_frequent_edges(&new_paths, 600);
+            frequent_edges = pickup_frequent_edges(&new_paths, la);
         }
         let start = if i == 0 { 0 } else { ts[i-1] };
         let end = ts[i];
@@ -234,7 +236,8 @@ fn get_edges(n: usize, m: usize) -> Vec<HashSet<usize>> {
     return e;
 }
 
-fn pickup_frequent_edges(paths: &Vec<Vec<usize>>, _size: usize) -> HashSet<NormalizedEdge> {
+fn pickup_frequent_edges(paths: &Vec<Vec<usize>>, la: usize) -> HashSet<NormalizedEdge> {
+    let size = la * 3 / 2;
     let mut freq = HashMap::new();
     for p in paths.iter() {
         if p.len() < 2 {
@@ -245,7 +248,7 @@ fn pickup_frequent_edges(paths: &Vec<Vec<usize>>, _size: usize) -> HashSet<Norma
             freq.entry(e).and_modify(|c| *c += 1).or_insert(1);
         }
     }
-    return freq.keys().filter(|k| freq.get(k).unwrap_or(&0) > &3).cloned().collect();
+    return freq.keys().filter(|k| freq.get(k).unwrap_or(&0) > &2).take(size).cloned().collect();
 }
 
 fn pickup_hub_nodes(edges: &Vec<HashSet<usize>>, size: usize) -> HashSet<usize> {
