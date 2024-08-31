@@ -49,7 +49,7 @@ fn solve(
     let start = std::time::Instant::now();
     let fast = env::var("FAST") == Ok("1".to_string());
     let hub = pickup_hub_nodes(edges, 10);
-    let paths = partitioned_path(edges, &hub, ts, la);
+    let paths = partitioned_path(edges, &hub, ts, la, lb);
     let mut path = Vec::new();
     for p in paths.iter() {
         path.extend(p);
@@ -66,7 +66,7 @@ fn solve(
             break;
         }
 
-        let new_paths = suggest_paths(&mut rng, &paths, edges, &hub, ts, la);
+        let new_paths = suggest_paths(&mut rng, &paths, edges, &hub, ts, la, lb);
         let mut new_path = Vec::new();
         for p in new_paths.iter() {
             new_path.extend(p);
@@ -87,12 +87,13 @@ fn partitioned_path(
     hub_nodes: &HashSet<usize>,
     ts: &Vec<usize>,
     la: usize,
+    lb: usize,
 ) -> Vec<Vec<usize>> {
     let mut paths = Vec::new();
     let mut pos = 0;
     let mut frequent_edges = HashSet::new();
     for (i, t) in ts.iter().copied().enumerate() {
-        let p = dijkstra(&edges, &frequent_edges, hub_nodes, pos, t);
+        let p = dijkstra(&edges, &frequent_edges, hub_nodes, pos, t, lb);
         if i % 100 == 50 {
             frequent_edges = pickup_frequent_edges(&paths, la);
         }
@@ -149,6 +150,7 @@ fn suggest_paths(
     hub_nodes: &HashSet<usize>,
     ts: &Vec<usize>,
     la: usize,
+    lb: usize,
 ) -> Vec<Vec<usize>> {
     let mut new_paths = vec![Vec::new(); paths.len()];
     let breaks = sample_indices(rng, paths.len(), 400);
@@ -168,7 +170,7 @@ fn suggest_paths(
         }
         let start = if i == 0 { 0 } else { ts[i-1] };
         let end = ts[i];
-        let p = dijkstra(edges, &frequent_edges, hub_nodes, start, end);
+        let p = dijkstra(edges, &frequent_edges, hub_nodes, start, end, lb);
         new_paths[i] = p;
         done.insert(i);
     }
@@ -284,6 +286,7 @@ fn dijkstra(
     hub_nodes: &HashSet<usize>,
     start: usize,
     goal: usize,
+    lb: usize
 ) -> Vec<usize> {
     let mut dist: Vec<_> = (0..edges.len()).map(|_| usize::MAX).collect();
     let mut from: Vec<_> = (0..edges.len()).map(|_| usize::MAX).collect();
@@ -301,8 +304,9 @@ fn dijkstra(
         }
         for &next in edges[position].iter() {
             let e = NormalizedEdge::from((position, next));
-            let cost_delta = if visited_edges.contains(&e)  { 20 }
-                else if hub_nodes.contains(&next){ 55 }
+            let cost_delta = if visited_edges.contains(&e)  {
+                if lb > 15 { 5 } else if lb > 8 { 20 } else  { 40 }
+            } else if hub_nodes.contains(&next){ 55 }
                 else { 100 };
             let next_cost = cost + cost_delta;
             if next_cost < dist[next] {
