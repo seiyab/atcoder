@@ -492,6 +492,7 @@ impl From<(usize, usize, usize, usize)> for NormalizedQuad {
 
 #[allow(dead_code)]
 fn greedy_as(path: &Vec<usize>, edges: &Vec<HashSet<usize>>, la: usize, lb: usize) -> Vec<usize> {
+    let effective_edges: HashSet<NormalizedEdge> = (0..path.len()-1).map(|i| NormalizedEdge::from((path[i], path[i+1]))).collect();
     let mut as_fw: Vec<usize> = Vec::new();
     let mut as_rv = vec![Vec::new(); 600];
     let mut as_yet: HashSet<_> = path.iter().copied().collect();
@@ -503,7 +504,7 @@ fn greedy_as(path: &Vec<usize>, edges: &Vec<HashSet<usize>>, la: usize, lb: usiz
             let prev = as_fw[as_fw.len() - 1];
             if as_fw.len() + la / 2 > la {
                 for &j in edges[prev].iter() {
-                    if as_yet.contains(&j) {
+                    if as_yet.contains(&j) && effective_edges.contains(&NormalizedEdge::from((prev, j))) {
                         as_rv[j].push(as_fw.len());
                         as_fw.push(j);
                         as_yet.remove(&j);
