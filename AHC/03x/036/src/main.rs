@@ -48,7 +48,7 @@ fn solve(
 ) -> (Vec<usize>, Vec<Step>) {
     let start = std::time::Instant::now();
     let fast = env::var("FAST") == Ok("1".to_string());
-    let hub = pickup_hub_nodes(edges, 15);
+    let hub = pickup_hub_nodes(edges, 80);
     let paths = partitioned_path(edges, &hub, ts, la, lb);
     let mut path = Vec::new();
     for p in paths.iter() {
@@ -255,24 +255,7 @@ fn pickup_frequent_edges(paths: &Vec<Vec<usize>>, la: usize) -> HashSet<Normaliz
 }
 
 fn pickup_hub_nodes(edges: &Vec<HashSet<usize>>, size: usize) -> HashSet<usize> {
-    let mut hubs = HashSet::new();
-    let mut sibs = HashSet::new();
     let r = node_ranking(edges);
-    for &i in r.iter() {
-        if hubs.len() >= size {
-            break;
-        }
-        if sibs.contains(&i) {
-            continue;
-        }
-        hubs.insert(i);
-        for &j in edges[i].iter() {
-            sibs.insert(j);
-            for &k in edges[j].iter() {
-                sibs.insert(k);
-            }
-        }
-    }
     return r.iter().take(size).copied().collect();
 }
 
