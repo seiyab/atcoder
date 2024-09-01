@@ -48,7 +48,7 @@ fn solve(
 ) -> (Vec<usize>, Vec<Step>) {
     let start = std::time::Instant::now();
     let fast = env::var("FAST") == Ok("1".to_string());
-    let hub = pickup_hub_nodes(edges, 80);
+    let hub = pickup_hub_nodes(edges, n / 5);
     let paths = partitioned_path(edges, &hub, ts, la, lb);
     let mut path = Vec::new();
     for p in paths.iter() {
