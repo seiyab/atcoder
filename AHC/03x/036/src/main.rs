@@ -508,16 +508,17 @@ fn greedy_as(path: &Vec<usize>, edges: &Vec<HashSet<usize>>, la: usize, lb: usiz
                 continue;
             }
             let conservative = i + path.len() / 12 < path.len();
+            let super_conservative = i < path.len() / 4;
             if i + path.len() / 4 < path.len() {
                 if let Some((_, score)) = select_bs_2(&as_fw, &as_rv, path, i, lb) {
-                    let th = if conservative { lb / 2 + 1 } else { lb * 4 / 5 };
+                    let th = if super_conservative { (lb * 4 + 1) / 5 } else if conservative { lb / 2 + 1 } else { lb * 4 / 5 };
                     if score >= th {
                         skip_until = i + score;
                         continue;
                     }
                 }
                 if i > 1 {
-                    let sl = if conservative { lb / 2 + 1 } else { lb / 4 };
+                    let sl = if super_conservative { lb } else if conservative { lb / 2 + 1 } else { lb / 4 };
                     if !as_fw.iter().rev().take(sl).any(|&x| x == path[i-1]) {
                         continue;
                     }
