@@ -501,7 +501,7 @@ fn greedy_as(path: &Vec<usize>, edges: &Vec<HashSet<usize>>, la: usize, lb: usiz
         let p = path[i];
         if as_fw.len() > 1 {
             let prev = as_fw[as_fw.len() - 1];
-            if as_fw.len() > la / 2 && lb > 10 {
+            if as_fw.len() + la / 2 > la {
                 for &j in edges[prev].iter() {
                     if as_yet.contains(&j) {
                         as_rv[j].push(as_fw.len());
